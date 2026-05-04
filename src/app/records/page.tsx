@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Printer, CheckCircle, Search, ShieldCheck, LogOut, Clock } from 'lucide-react';
+import { FileText, Printer, CheckCircle, Search, ShieldCheck, LogOut, Clock, LayoutGrid, Check, ArrowRight } from 'lucide-react';
 
 export default function RecordsPage() {
   const router = useRouter();
@@ -12,6 +12,12 @@ export default function RecordsPage() {
   const [authUser, setAuthUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [mounted, setMounted] = useState(false);
+  const [confirming, setConfirming] = useState(null); // { id, type, title, message, action }
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchData = async () => {
     try {
@@ -29,7 +35,8 @@ export default function RecordsPage() {
 
       const res = await fetch('/api/records');
       const data = await res.json();
-      setRecords(data.records || []);
+      const newRecords = data.records || [];
+      setRecords(newRecords);
     } catch (error) {
       console.error('Failed to fetch records data');
     }
@@ -41,46 +48,84 @@ export default function RecordsPage() {
     return () => clearInterval(interval);
   }, [authUser]);
 
-  const handleMarkPrinted = async (id) => {
-    if (!authUser) return;
-    setLoading(true);
-    try {
-      await fetch('/api/records', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          id, 
-          recordStatus: 'Printed',
-          recordRetrievedBy: authUser.user_name
-        }),
-      });
-      fetchData();
-    } catch (error) {
-      alert('Failed to update record');
-    } finally {
-      setLoading(false);
-    }
+  const handleMarkPrinted = (id) => {
+    setConfirming({
+      id,
+      type: 'print',
+      title: 'Confirm Print',
+      message: 'Are you sure this document is already printed?',
+      action: async () => {
+        const idToProcess = id;
+        // Optimistic Update
+        const updatedRecords = records.map(r => 
+          Number(r.id) === Number(idToProcess) ? { ...r, recordStatus: 'Printed', recordRetrievedBy: authUser?.user_name } : r
+        );
+        setRecords(updatedRecords);
+        setLoading(true);
+
+        try {
+          const res = await fetch('/api/records', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              id: idToProcess, 
+              recordStatus: 'Printed',
+              recordRetrievedBy: authUser?.user_name
+            }),
+          });
+          
+          if (!res.ok) throw new Error('API update failed');
+          await fetchData();
+        } catch (error) {
+          console.error('Update failed:', error);
+          alert('Failed to update record: ' + error.message);
+          await fetchData();
+        } finally {
+          setLoading(false);
+          setConfirming(null);
+        }
+      }
+    });
   };
 
-  const handleMarkReady = async (id) => {
-    if (!authUser) return;
-    setLoading(true);
-    try {
-      await fetch('/api/records', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          id, 
-          recordStatus: 'Ready',
-          recordRetrievedBy: authUser.user_name
-        }),
-      });
-      fetchData();
-    } catch (error) {
-      alert('Failed to update record');
-    } finally {
-      setLoading(false);
-    }
+  const handleMarkReady = (id) => {
+    setConfirming({
+      id,
+      type: 'retrieve',
+      title: 'Confirm Retrieval',
+      message: 'Are you sure this document has been retrieved?',
+      action: async () => {
+        const idToProcess = id;
+        // Optimistic Update
+        const updatedRecords = records.map(r => 
+          Number(r.id) === Number(idToProcess) ? { ...r, recordStatus: 'Ready' } : r
+        );
+        setRecords(updatedRecords);
+        setLoading(true);
+
+        try {
+          const res = await fetch('/api/records', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              id: idToProcess, 
+              recordStatus: 'Ready',
+              recordRetrievedBy: authUser?.user_name
+            }),
+          });
+          
+          if (!res.ok) throw new Error('API update failed');
+          await fetchData();
+        } catch (error) {
+          console.error('Update failed:', error);
+          alert('Failed to update record: ' + error.message);
+          await fetchData();
+        } finally {
+          setLoading(false);
+          setConfirming(null);
+        }
+      }
+    });
   };
 
   const handleLogout = async () => {
@@ -95,31 +140,102 @@ export default function RecordsPage() {
     p.hpercode?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const pendingRecords = filteredRecords.filter(r => r.recordStatus === 'Pending' || !r.recordStatus);
-  const retrievalRecords = filteredRecords.filter(r => r.recordStatus === 'Printed' || r.recordStatus === 'Ready');
+  // Filter out completed/no-show patients first
+  const activeRecords = filteredRecords.filter(r => {
+    const qStat = (r.status || '').trim();
+    return qStat !== 'Completed' && qStat !== 'No Show';
+  });
+
+  // Split lists for the dual-column view
+  const pendingQueue = activeRecords.filter(r => {
+    const rStat = (r.recordStatus || '').trim();
+    return rStat === 'Pending' || rStat === '';
+  });
+
+  const retrievalHub = activeRecords.filter(r => {
+    const rStat = (r.recordStatus || '').trim();
+    return rStat === 'Printed';
+  });
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans selection:bg-emerald-100">
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <header className="px-10 py-5 flex justify-between items-center w-full">
-          <Link href="/" className="flex items-center gap-4 hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-100">
-              <FileText size={20} strokeWidth={2.5} />
+    <div className="min-h-screen bg-[#020205] text-white font-sans selection:bg-emerald-500/30 overflow-hidden flex flex-col">
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
+      
+      {/* Custom Confirmation Modal */}
+      <AnimatePresence>
+        {confirming && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setConfirming(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            ></motion.div>
+            
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-zinc-900 border border-white/10 p-10 rounded-[3rem] shadow-2xl overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
+                 {confirming.type === 'print' ? <Printer size={150} /> : <CheckCircle size={150} />}
+              </div>
+
+              <div className="relative z-10">
+                <h3 className="text-3xl font-black text-white italic uppercase tracking-tighter mb-4">{confirming.title}</h3>
+                <p className="text-zinc-400 font-bold text-sm leading-relaxed mb-10">{confirming.message}</p>
+                
+                <div className="grid grid-cols-2 gap-4">
+                   <button 
+                     onClick={() => setConfirming(null)}
+                     className="py-5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest transition-all"
+                   >
+                     Cancel
+                   </button>
+                   <button 
+                     onClick={() => confirming.action()}
+                     className="py-5 bg-emerald-500 hover:bg-emerald-600 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all"
+                   >
+                     Yes, Confirm
+                   </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      
+      {/* Dynamic Background Accents */}
+      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-emerald-600/5 rounded-full blur-[150px] pointer-events-none"></div>
+      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-indigo-600/5 rounded-full blur-[150px] pointer-events-none"></div>
+      <div className="bg-black/40 border-b border-white/5 sticky top-0 z-50 backdrop-blur-2xl">
+        <header className="max-w-screen-2xl mx-auto px-10 py-6 flex justify-between items-center w-full">
+          <Link href="/" className="flex items-center gap-6 hover:opacity-80 transition-all group">
+            <div className="relative">
+              <div className="absolute -inset-2 bg-emerald-600 rounded-2xl blur-lg opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+              <div className="relative w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 backdrop-blur-xl">
+                <FileText size={26} className="text-emerald-500" strokeWidth={2.5} />
+              </div>
             </div>
             <div>
-              <h1 className="text-xl font-black tracking-tight text-slate-900"><span className="text-emerald-600">Qure</span> | Records Portal</h1>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Chart Management Center</p>
+              <h1 className="text-2xl font-black tracking-tighter text-white italic uppercase">QURE <span className="text-emerald-500">RECORDS</span></h1>
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500">Logistics Node Active</p>
+              </div>
             </div>
           </Link>
           
-          <div className="flex items-center gap-4">
-             <div className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-black uppercase tracking-widest border border-emerald-100 hidden md:block">
-               Officer: {authUser?.actual_name || authUser?.user_name}
+          <div className="flex items-center gap-8">
+             <div className="px-5 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-zinc-400 uppercase tracking-widest hidden md:block">
+               Authenticated: {authUser?.actual_name || authUser?.user_name}
              </div>
              <button 
                onClick={handleLogout}
-               className="p-3 bg-slate-50 hover:bg-slate-200 border border-slate-200 rounded-xl text-slate-400 hover:text-slate-600 transition-all duration-300"
-               title="Logout"
+               className="p-3.5 bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/50 rounded-2xl text-zinc-500 hover:text-red-500 transition-all duration-500"
+               title="Secure Logout"
              >
                <LogOut size={20} />
              </button>
@@ -127,149 +243,127 @@ export default function RecordsPage() {
         </header>
       </div>
 
-      <main className="flex-1 p-10 grid grid-cols-12 gap-10 w-full">
-        {/* Left: Pending Requests */}
-        <div className="col-span-12 xl:col-span-6 flex flex-col h-full">
-          <div className="flex items-center justify-between mb-10">
-             <div>
-               <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
-                 Pending Requests <span className="bg-emerald-100 text-emerald-600 px-4 py-1 rounded-full text-xs">{pendingRecords.length}</span>
+      <main className="max-w-screen-2xl mx-auto p-10 flex gap-10 flex-1 overflow-hidden">
+        {/* Lane 1: Intake Queue */}
+        <div className="flex-1 flex flex-col gap-8 h-full">
+           <div className="flex items-center justify-between">
+             <div className="flex flex-col">
+               <h2 className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.4em] mb-1 flex items-center gap-3">
+                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                 Intake Queue
                </h2>
-               <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-1">New calls requiring record retrieval</p>
+               <p className="text-3xl font-black text-white italic tracking-tighter uppercase">Pending Charts</p>
              </div>
-             <div className="relative">
-               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+             <div className="relative group">
+               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-emerald-500 transition-colors" size={16} />
                <input 
                  type="text"
-                 placeholder="Search charts..."
+                 placeholder="Search..."
                  value={search}
                  onChange={(e) => setSearch(e.target.value)}
-                 className="pl-12 pr-6 py-4 bg-white border border-slate-200 rounded-2xl w-64 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all shadow-sm font-bold text-sm"
+                 className="pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl w-48 text-white focus:border-emerald-500/50 outline-none transition-all font-bold text-[10px]"
                />
              </div>
-          </div>
-          
-          <div className="space-y-6 flex-1 overflow-y-auto pr-4 scrollbar-hide">
-            <AnimatePresence mode="popLayout">
-              {pendingRecords.map((p) => (
-                <motion.div 
-                  key={p.id}
-                  layout
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-xl hover:shadow-emerald-100/50 transition-all duration-500 group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-8">
-                      <div className="text-6xl font-black text-slate-900 w-44 tracking-tighter group-hover:text-emerald-600 transition-colors duration-500">{p.queueNumber}</div>
-                      <div className="h-16 w-[1px] bg-slate-100"></div>
+           </div>
+
+           <div className="flex-1 overflow-y-auto pr-4 space-y-4 scrollbar-hide">
+             <AnimatePresence mode="popLayout">
+               {pendingQueue.map((p, idx) => (
+                 <motion.div 
+                   key={p.id}
+                   layout
+                   initial={{ opacity: 0, x: -20 }}
+                   animate={{ opacity: 1, x: 0 }}
+                   exit={{ opacity: 0, scale: 0.9 }}
+                   className="bg-white/[0.03] p-6 rounded-[2rem] border border-white/5 flex items-center justify-between group hover:border-emerald-500/30 transition-all duration-500"
+                 >
+                   <div className="flex items-center gap-6">
+                      <div className="text-4xl font-black text-white italic tracking-tighter w-24 group-hover:text-emerald-500 transition-colors">{p.queueNumber}</div>
                       <div>
-                         <div className="font-black text-slate-900 text-xl flex items-center gap-4">
+                         <div className="font-black text-white text-lg italic tracking-tight mb-1 flex items-center gap-3">
                            {p.patientName}
-                           {p.classification !== 'Regular' && (
-                             <span className="px-4 py-1 bg-rose-100 text-rose-700 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm border border-rose-200">{p.classification}</span>
+                           {p.status === 'Calling' && (
+                             <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(99,102,241,0.8)]"></span>
                            )}
                          </div>
-                         <div className="flex items-center gap-4 mt-3">
-                           <span className="text-sm font-black text-slate-500 tracking-widest uppercase bg-slate-50 px-4 py-1 rounded-lg border border-slate-200">ID: {p.hpercode || 'N/A'}</span>
-                           <span className="text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg">
-                             {p.serviceType}
-                           </span>
+                         <div className="flex items-center gap-3">
+                           <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">HPER: {p.hpercode || 'N/A'}</span>
+                           <span className="text-[9px] font-black text-emerald-500/30 uppercase tracking-widest">{p.serviceType}</span>
                          </div>
                       </div>
-                    </div>
-                    <button 
-                      onClick={() => handleMarkPrinted(p.id)}
-                      disabled={loading}
-                      className="p-6 bg-slate-900 text-white rounded-3xl hover:bg-emerald-600 transition-all shadow-xl hover:scale-105 active:scale-95 group-hover:shadow-emerald-200"
-                      title="Mark as Printed"
-                    >
-                      <Printer size={24} />
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
-              
-              {pendingRecords.length === 0 && (
-                <div className="p-32 text-center bg-white border-2 border-dashed border-slate-100 rounded-[3rem] flex flex-col items-center">
-                  <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-3xl flex items-center justify-center mb-6">
-                    <CheckCircle size={40} />
-                  </div>
-                  <p className="text-slate-400 font-black uppercase tracking-[0.2em] text-sm">All Records Processed</p>
-                </div>
-              )}
-            </AnimatePresence>
-          </div>
+                   </div>
+                   <button 
+                     onClick={() => handleMarkPrinted(p.id)}
+                     disabled={loading}
+                     className="p-5 bg-white text-black rounded-2xl hover:bg-emerald-500 hover:text-white transition-all duration-500 shadow-xl active:scale-95"
+                   >
+                     <Printer size={20} />
+                   </button>
+                 </motion.div>
+               ))}
+               {pendingQueue.length === 0 && (
+                 <div className="h-full flex flex-col items-center justify-center opacity-10">
+                   <LayoutGrid size={60} />
+                   <p className="text-[10px] font-black uppercase tracking-[0.5em] mt-4">Queue_Clear</p>
+                 </div>
+               )}
+             </AnimatePresence>
+           </div>
         </div>
 
-        {/* Right: Retrieval Area */}
-        <div className="col-span-12 xl:col-span-6 flex flex-col h-full">
-           <div className="flex items-center justify-between mb-10">
-             <div>
-               <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
-                 Retrieval Pipeline <span className="bg-slate-200 text-slate-600 px-4 py-1 rounded-full text-xs">{retrievalRecords.length}</span>
+        {/* Lane 2: Retrieval Hub */}
+        <div className="flex-1 flex flex-col gap-8 h-full">
+           <div className="flex items-center justify-between">
+             <div className="flex flex-col">
+               <h2 className="text-[11px] font-black text-amber-500 uppercase tracking-[0.4em] mb-1 flex items-center gap-3">
+                 <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
+                 Retrieval Hub
                </h2>
-               <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-1">Charts currently in transition</p>
+               <p className="text-3xl font-black text-white italic tracking-tighter uppercase">Printed & Ready</p>
              </div>
-             <div className="flex items-center gap-3">
-               <ShieldCheck className="text-emerald-500" size={24} />
-               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Secure Retrieval</span>
+             <div className="px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-3">
+                <Clock size={14} className="text-amber-500" />
+                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Action Required</span>
              </div>
-          </div>
+           </div>
 
-          <div className="space-y-6 flex-1 overflow-y-auto pr-4 scrollbar-hide">
-            <AnimatePresence mode="popLayout">
-              {retrievalRecords.map((p) => (
-                <motion.div 
-                  key={p.id}
-                  layout
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className={`p-8 rounded-[2.5rem] border transition-all duration-500 group flex items-center justify-between ${
-                    p.recordStatus === 'Ready' 
-                    ? 'bg-emerald-50 border-emerald-100 shadow-xl shadow-emerald-100/50' 
-                    : 'bg-white border-slate-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-8">
-                    <div className="text-6xl font-black text-slate-900 w-44 tracking-tighter">{p.queueNumber}</div>
-                    <div>
-                       <div className="font-black text-slate-900 text-xl">{p.patientName}</div>
-                       <div className="flex items-center gap-3 mt-3">
-                         <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${
-                           p.recordStatus === 'Ready' 
-                           ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200' 
-                           : 'bg-amber-100 text-amber-700 border border-amber-200'
-                         }`}>
-                           {p.recordStatus === 'Ready' ? <CheckCircle size={12} /> : <Clock size={12} />}
-                           {p.recordStatus === 'Ready' ? 'CHART_READY' : 'SEARCHING_FILES'}
-                         </span>
-                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">BY: {p.recordRetrievedBy}</span>
-                       </div>
-                    </div>
-                  </div>
-                  
-                  {p.recordStatus !== 'Ready' && (
-                    <button 
-                      onClick={() => handleMarkReady(p.id)}
-                      disabled={loading}
-                      className="px-8 py-5 bg-emerald-600 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-900 transition-all shadow-xl hover:scale-105"
-                    >
-                      Chart Ready
-                    </button>
-                  )}
-                </motion.div>
-              ))}
-              
-              {retrievalRecords.length === 0 && (
-                <div className="p-32 text-center opacity-10">
-                   <FileText size={64} className="mx-auto" />
-                </div>
-              )}
-            </AnimatePresence>
-          </div>
+           <div className="flex-1 overflow-y-auto pr-4 space-y-4 scrollbar-hide">
+             <AnimatePresence mode="popLayout">
+               {retrievalHub.map((p, idx) => (
+                 <motion.div 
+                   key={p.id}
+                   layout
+                   initial={{ opacity: 0, x: 20 }}
+                   animate={{ opacity: 1, x: 0 }}
+                   exit={{ opacity: 0, scale: 0.9, x: 40 }}
+                   className="bg-amber-500/5 p-6 rounded-[2rem] border border-amber-500/20 flex items-center justify-between group hover:bg-amber-500/10 transition-all duration-500"
+                 >
+                   <div className="flex items-center gap-6">
+                      <div className="text-4xl font-black text-amber-500 italic tracking-tighter w-24">{p.queueNumber}</div>
+                      <div>
+                         <div className="font-black text-white text-lg italic tracking-tight mb-1">{p.patientName}</div>
+                         <div className="flex items-center gap-3">
+                           <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Node: {p.recordRetrievedBy}</span>
+                           <span className="text-[9px] font-black text-amber-500/50 uppercase tracking-widest italic">Awaiting Retrieval</span>
+                         </div>
+                      </div>
+                   </div>
+                   <button 
+                     onClick={() => handleMarkReady(p.id)}
+                     disabled={loading}
+                     className="px-6 py-4 bg-amber-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-500 transition-all duration-500 shadow-xl shadow-amber-500/20 active:scale-95"
+                   >
+                     Complete
+                   </button>
+                 </motion.div>
+               ))}
+               {retrievalHub.length === 0 && (
+                 <div className="h-full flex flex-col items-center justify-center opacity-[0.03]">
+                   <FileText size={100} />
+                 </div>
+               )}
+             </AnimatePresence>
+           </div>
         </div>
       </main>
     </div>

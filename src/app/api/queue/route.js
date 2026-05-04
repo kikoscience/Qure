@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getPool, sql } from '@/lib/db';
+import { getQueuePool, sql } from '@/lib/db';
 
 export async function GET() {
   try {
-    const pool = await getPool();
+    const pool = await getQueuePool();
     const result = await pool.request()
-      .query('SELECT * FROM Queues WHERE status IN (\'Pending\', \'Calling\') ORDER BY createdAt ASC');
+      .query('SELECT * FROM Queues WHERE status IN (\'Pending\', \'Calling\', \'Skipped\') ORDER BY createdAt ASC');
     
     return NextResponse.json(result.recordset);
   } catch (error) {
@@ -17,18 +17,23 @@ export async function GET() {
 export async function POST(request) {
   try {
     const { patientName, serviceType, classification, emrId, hpercode } = await request.json();
-    const pool = await getPool();
+    const pool = await getQueuePool();
     
     // Generate Prefix based on TSCODE (Service Type)
-    // We take the first 3 letters and uppercase it (e.g., MEDICAL -> MED)
     const tscodePrefix = serviceType.substring(0, 3).toUpperCase();
-    
-    const finalPrefix = tscodePrefix;
+    const isPriority = classification !== 'Regular';
+    const finalPrefix = isPriority ? `P-${tscodePrefix}` : tscodePrefix;
 
-    // Generate queue number based on this prefix today
+    // Generate queue number based on this prefix and classification today
     const countResult = await pool.request()
       .input('serviceType', sql.VarChar, serviceType)
-      .query('SELECT COUNT(*) as count FROM Queues WHERE serviceType = @serviceType AND CAST(createdAt AS DATE) = CAST(GETDATE() AS DATE)');
+      .input('isPriority', sql.Bit, isPriority ? 1 : 0)
+      .query(`
+        SELECT COUNT(*) as count FROM Queues 
+        WHERE serviceType = @serviceType 
+        AND (CASE WHEN classification = 'Regular' THEN 0 ELSE 1 END) = @isPriority
+        AND CAST(createdAt AS DATE) = CAST(GETDATE() AS DATE)
+      `);
     
     const count = countResult.recordset[0].count + 1;
     const queueNumber = `${finalPrefix}-${count.toString().padStart(3, '0')}`;
@@ -52,13 +57,13 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const { id, status, door } = await request.json();
-    const pool = await getPool();
+    const pool = await getQueuePool();
     
     const result = await pool.request()
       .input('id', sql.Int, id)
       .input('status', sql.VarChar, status)
-      .input('door', sql.VarChar, door || null)
-      .query('UPDATE Queues SET status = @status, door = ISNULL(@door, door), updatedAt = GETDATE() OUTPUT INSERTED.* WHERE id = @id');
+      .input('door', sql.VarChar, door)
+      .query('UPDATE Queues SET status = @status, door = @door, updatedAt = GETDATE() OUTPUT INSERTED.* WHERE id = @id');
     
     return NextResponse.json(result.recordset[0]);
   } catch (error) {

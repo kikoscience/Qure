@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getPool, sql } from '@/lib/db';
+import { getQueuePool, sql } from '@/lib/db';
 
 export async function POST(request) {
   try {
     const { employeeName } = await request.json();
-    const pool = await getPool();
+    const pool = await getQueuePool();
     
     const result = await pool.request()
       .input('employeeName', sql.VarChar, employeeName)
@@ -25,7 +25,7 @@ export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    const pool = await getPool();
+    const pool = await getQueuePool();
     
     await pool.request()
       .input('id', sql.Int, id)

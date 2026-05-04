@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getPool, sql } from '@/lib/db';
+import { getQueuePool, sql } from '@/lib/db';
 
 export async function GET() {
   try {
-    const pool = await getPool();
+    const pool = await getQueuePool();
     // Get all records for today
     const result = await pool.request()
       .query(`
@@ -24,14 +24,14 @@ export async function GET() {
 export async function PATCH(request) {
   try {
     const { id, recordStatus, recordRetrievedBy } = await request.json();
-    const pool = await getPool();
+    const pool = await getQueuePool();
     
     const result = await pool.request()
       .input('id', sql.Int, id)
       .input('recordStatus', sql.VarChar, recordStatus)
       .input('recordRetrievedBy', sql.VarChar, recordRetrievedBy)
       .query(`
-        UPDATE Queues 
+        UPDATE HospitalQueueDB.dbo.Queues 
         SET recordStatus = @recordStatus, 
             recordRetrievedBy = @recordRetrievedBy, 
             updatedAt = GETDATE() 
@@ -39,9 +39,13 @@ export async function PATCH(request) {
         WHERE id = @id
       `);
     
+    if (result.recordset.length === 0) {
+      return NextResponse.json({ error: 'Record not found' }, { status: 404 });
+    }
+
     return NextResponse.json(result.recordset[0]);
   } catch (error) {
     console.error('API Error:', error);
-    return NextResponse.json({ error: 'Failed to update record status' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error: ' + error.message }, { status: 500 });
   }
 }

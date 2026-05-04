@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getPool, sql } from '@/lib/db';
+import { getHospitalPool, sql } from '@/lib/db';
 import { cookies } from 'next/headers';
 
 export async function POST(request) {
@@ -10,7 +10,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Username and password are required' }, { status: 400 });
     }
 
-    const pool = await getPool();
+    const pool = await getHospitalPool();
     
     // Query the hospital database using their encryption function
     const result = await pool.request()

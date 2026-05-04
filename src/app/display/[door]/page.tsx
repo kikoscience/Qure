@@ -38,27 +38,6 @@ export default function DoorDisplayPage({ params }) {
         const prevStates = prevIdsRef.current;
         const newStates = currentStates.filter(state => !prevStates.includes(state));
         
-        if (newStates.length > 0 && prevStates.length > 0) {
-           // Cancel any ongoing speech before starting the new queue
-           if ('speechSynthesis' in window) {
-               window.speechSynthesis.cancel();
-           }
-           
-           newStates.forEach(state => {
-               const id = parseInt(state.split('|')[0], 10);
-               const p = activeList.find(x => x.id === id);
-               if (p && 'speechSynthesis' in window) {
-                   setIsSpeaking(true);
-                   
-                   // Make it pronounce dashes as spaces for better TTS
-                   const safeNumber = p.queueNumber.replace(/-/g, ' ');
-                   const msg = new SpeechSynthesisUtterance(`Calling patient number ${safeNumber}, to ${doorId}`);
-                   msg.rate = 0.85;
-                   msg.pitch = 1.1;
-                   msg.onend = () => setIsSpeaking(false);
-                   window.speechSynthesis.speak(msg);
-               }
-           });
         }
         prevIdsRef.current = currentStates;
 

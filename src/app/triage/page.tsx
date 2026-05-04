@@ -3,7 +3,11 @@
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, UserPlus, CheckCircle, Hospital, ArrowRight, RefreshCcw, LayoutGrid, ListFilter, Clock, Printer, X, LogOut } from 'lucide-react';
+import { 
+  Search, UserPlus, CheckCircle, Hospital, ArrowRight, 
+  RefreshCcw, LayoutGrid, ListFilter, Clock, Printer, 
+  X, LogOut, ShieldCheck, Check 
+} from 'lucide-react';
 
 export default function TriagePage() {
   const [emrList, setEmrList] = useState([]);
@@ -106,13 +110,18 @@ export default function TriagePage() {
   };
 
   const filteredList = Array.isArray(emrList) ? emrList.filter(p => 
-    p.patientName.toLowerCase().includes(search.toLowerCase()) ||
-    p.serviceType.toLowerCase().includes(search.toLowerCase()) ||
+    p.patientName?.toLowerCase().includes(search.toLowerCase()) ||
+    p.serviceType?.toLowerCase().includes(search.toLowerCase()) ||
     p.patientId?.toLowerCase().includes(search.toLowerCase())
   ) : [];
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans selection:bg-indigo-100">
+    <div className="min-h-screen bg-[#020205] text-white font-sans selection:bg-indigo-500/30 overflow-hidden flex flex-col">
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
+      
+      {/* Dynamic Background Accents */}
+      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-indigo-600/5 rounded-full blur-[150px] pointer-events-none"></div>
+      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-emerald-600/5 rounded-full blur-[150px] pointer-events-none"></div>
       
       {/* Print Overlay (Only visible when printing) */}
       <style jsx global>{`
@@ -156,102 +165,120 @@ export default function TriagePage() {
       )}
 
       {/* Qure Standard Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-50 backdrop-blur-md bg-white/80">
-        <header className="max-w-7xl mx-auto px-8 py-5 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-4 hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-              <Hospital size={20} strokeWidth={2.5} />
+      <div className="bg-black/40 border-b border-white/5 sticky top-0 z-50 backdrop-blur-2xl">
+        <header className="max-w-screen-2xl mx-auto px-10 py-6 flex justify-between items-center">
+          <Link href="/" className="flex items-center gap-6 hover:opacity-80 transition-all group">
+            <div className="relative">
+              <div className="absolute -inset-2 bg-indigo-600 rounded-2xl blur-lg opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+              <div className="relative w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 backdrop-blur-xl">
+                <Hospital size={26} className="text-indigo-500" strokeWidth={2.5} />
+              </div>
             </div>
             <div>
-              <h1 className="text-xl font-black tracking-tight text-slate-900"><span className="text-indigo-600">Qure</span> | Triage</h1>
+              <h1 className="text-2xl font-black tracking-tighter text-white italic">QURE <span className="text-indigo-500">TRIAGE</span></h1>
               <div className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Live EMR Connection</p>
+                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500">Live EMR Uplink Active</p>
               </div>
             </div>
           </Link>
           
-          <div className="flex items-center gap-4">
-             <div className="flex flex-col items-end mr-4">
-               <label className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1">Clinic Date</label>
+          <div className="flex items-center gap-8">
+             <div className="flex flex-col items-end">
+               <label className="text-[9px] font-black uppercase text-zinc-600 tracking-[0.4em] mb-2">Clinic Operations Date</label>
                <input 
                  type="date" 
                  value={selectedDate}
                  onChange={(e) => setSelectedDate(e.target.value)}
-                 className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-600 outline-none focus:border-indigo-600 transition-all cursor-pointer"
+                 className="bg-white/5 border border-white/10 rounded-xl px-5 py-2 text-xs font-bold text-white outline-none focus:border-indigo-500/50 transition-all cursor-pointer hover:bg-white/10"
                />
              </div>
-             <div className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-black uppercase tracking-widest border border-indigo-100 hidden md:block">
-               {authUser?.actual_name || authUser?.user_name}
+             
+             <div className="h-10 w-px bg-white/5"></div>
+
+             <div className="flex items-center gap-6">
+                <div className="text-right hidden xl:block">
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-0.5">Triage Officer</p>
+                  <p className="text-xs font-black text-white uppercase tracking-tighter">{authUser?.actual_name || authUser?.user_name}</p>
+                </div>
+                <button 
+                  onClick={handleLogout}
+                  className="p-3.5 bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/50 rounded-2xl text-zinc-500 hover:text-red-500 transition-all duration-500 group"
+                  title="Secure Logout"
+                >
+                  <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
+                </button>
+                <button 
+                  onClick={fetchEmrList}
+                  disabled={loading}
+                  className="p-3.5 bg-indigo-600 hover:bg-indigo-500 rounded-2xl text-white transition-all duration-500 shadow-xl shadow-indigo-600/20 active:scale-95"
+                >
+                  <RefreshCcw size={22} className={loading ? 'animate-spin' : ''} />
+                </button>
              </div>
-             <button 
-               onClick={handleLogout}
-               className="p-3 bg-slate-50 hover:bg-slate-200 border border-slate-200 rounded-xl text-slate-400 hover:text-slate-600 transition-all duration-300 flex items-center gap-2"
-               title="Logout"
-             >
-               <LogOut size={20} />
-             </button>
-             <button 
-              onClick={fetchEmrList}
-              disabled={loading}
-              className="p-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-xl text-indigo-500 hover:text-indigo-600 transition-all duration-300"
-            >
-              <RefreshCcw size={20} className={loading ? 'animate-spin' : ''} />
-            </button>
           </div>
         </header>
       </div>
 
-      <main className="max-w-7xl mx-auto px-8 py-12 grid grid-cols-12 gap-10">
-        <div className="col-span-12 lg:col-span-8 space-y-8">
-          <section>
-            <div className="flex items-center justify-between mb-6">
-               <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                 <ListFilter size={16} /> Patient Selection
-               </h2>
-               <div className="text-xs font-bold text-slate-400">
-                 {filteredList.length} patients available for queueing
+      <main className="max-w-screen-2xl mx-auto px-10 py-10 flex gap-10 overflow-hidden flex-1">
+        <div className="flex-1 flex flex-col gap-8">
+          <section className="flex flex-col h-full">
+            <div className="flex items-center justify-between mb-8">
+               <div className="flex flex-col">
+                  <h2 className="text-[11px] font-black text-indigo-500 uppercase tracking-[0.4em] mb-1 flex items-center gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
+                    Clinical Registration
+                  </h2>
+                  <p className="text-3xl font-black text-white italic tracking-tighter">PATIENT SELECTION</p>
+               </div>
+               <div className="px-5 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                 {filteredList.length} <span className="text-zinc-700 mx-1">/</span> Records Found
                </div>
             </div>
             
-            <div className="relative group mb-8">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={24} />
+            <div className="relative group mb-10">
+              <div className="absolute inset-0 bg-indigo-600/5 rounded-3xl blur-xl opacity-0 group-focus-within:opacity-100 transition duration-500"></div>
+              <Search className="absolute left-8 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-indigo-500 transition-colors" size={28} />
               <input 
                 type="text"
-                placeholder="Search patient name, HPER code, or department..."
+                placeholder="Search patient name, hospital ID, or clinic department..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-16 pr-8 py-6 bg-white border border-slate-200 rounded-3xl text-xl font-medium outline-none shadow-sm focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all duration-300"
+                className="w-full pl-20 pr-10 py-8 bg-white/5 border border-white/10 rounded-[2rem] text-2xl font-bold text-white outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all duration-500 placeholder:text-zinc-700"
               />
             </div>
 
-            <div className="grid gap-4">
+            <div className="flex-1 overflow-y-auto pr-4 space-y-4 scrollbar-hide">
               <AnimatePresence mode="popLayout">
                 {!error && filteredList.map((p, idx) => (
                   <motion.div 
                     key={p.id}
                     layout
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, x: -50 }}
-                    transition={{ delay: idx * 0.03 }}
-                    className="bg-white p-6 rounded-[2.5rem] border border-slate-200 flex items-center justify-between hover:border-indigo-600 hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500 group"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ delay: idx * 0.02 }}
+                    className="bg-white/[0.03] p-8 rounded-[2.5rem] border border-white/5 flex items-center justify-between hover:bg-white/[0.06] hover:border-indigo-500/30 group transition-all duration-500 relative overflow-hidden"
                   >
-                    <div className="flex items-center gap-6">
-                      <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 font-black text-xl group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors duration-500">
+                    <div className="absolute top-0 right-0 p-8 opacity-0 group-hover:opacity-[0.03] transition-opacity">
+                       <UserPlus size={100} />
+                    </div>
+
+                    <div className="flex items-center gap-8 relative z-10">
+                      <div className="w-20 h-20 bg-black/40 rounded-3xl flex items-center justify-center text-indigo-500 font-black text-3xl border border-white/5 group-hover:border-indigo-500/50 transition-colors shadow-2xl">
                         {p.patientName.charAt(0)}
                       </div>
                       <div>
-                        <div className="text-xl font-black text-slate-900 tracking-tight">{p.patientName}</div>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                        <div className="text-3xl font-black text-white italic tracking-tighter group-hover:text-indigo-400 transition-colors">{p.patientName}</div>
+                        <div className="flex items-center gap-5 mt-3">
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-lg border border-indigo-500/20">
                             {p.serviceType}
                           </span>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
-                            ID: {p.patientId}
+                          <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest bg-black/40 px-3 py-1 rounded-lg border border-white/5">
+                            HPER: {p.patientId}
                           </span>
-                          <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 border-l border-slate-200 pl-3">
-                            <Clock size={10} />
+                          <div className="flex items-center gap-2 text-[10px] font-black text-zinc-600 uppercase tracking-widest">
+                            <Clock size={12} className="text-indigo-500/50" />
                             {new Date(p.appointmentTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'UTC' })}
                           </div>
                         </div>
@@ -263,9 +290,9 @@ export default function TriagePage() {
                         setSelectedPatient(p);
                         setIsModalOpen(true);
                       }}
-                      className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest flex items-center gap-3 hover:bg-indigo-600 transition-all duration-300 shadow-lg shadow-slate-200"
+                      className="relative px-10 py-5 bg-white text-black rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] flex items-center gap-4 hover:bg-indigo-500 hover:text-white transition-all duration-500 shadow-xl group/btn active:scale-95"
                     >
-                      Assign Number <ArrowRight size={18} />
+                      Process Assignment <ArrowRight size={20} className="group-hover/btn:translate-x-2 transition-transform" />
                     </button>
                   </motion.div>
                 ))}
@@ -275,31 +302,60 @@ export default function TriagePage() {
         </div>
 
         {/* Status Display */}
-        <div className="col-span-12 lg:col-span-4 space-y-8">
-           <AnimatePresence>
-            {lastQueued && (
+        <div className="w-96 flex flex-col gap-8">
+           <div className="flex flex-col mb-2">
+              <h3 className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.4em] mb-1 flex items-center gap-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                Command Feedback
+              </h3>
+              <p className="text-2xl font-black text-white italic tracking-tighter uppercase">Last Processed</p>
+           </div>
+
+           <AnimatePresence mode="wait">
+            {lastQueued ? (
               <motion.div 
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                key={lastQueued.id}
+                initial={{ opacity: 0, scale: 0.9, y: 30 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl shadow-indigo-200 relative overflow-hidden"
+                exit={{ opacity: 0, scale: 0.9, y: -30 }}
+                className="bg-white rounded-[3rem] p-12 text-black shadow-2xl relative overflow-hidden group"
               >
+                <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:scale-110 transition-transform duration-1000">
+                   <CheckCircle size={180} />
+                </div>
+
                 <div className="relative z-10 text-center">
-                  <div className="inline-flex p-3 bg-green-500 rounded-xl mb-6">
-                     <CheckCircle size={24} />
+                  <div className="inline-flex p-4 bg-emerald-500 text-white rounded-[1.5rem] mb-10 shadow-xl shadow-emerald-500/30">
+                     <CheckCircle size={32} />
                   </div>
-                  <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-[10px] mb-4">Patient Queued Successfully</p>
-                  <h3 className="text-8xl font-black mb-2 tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-500">
-                    {lastQueued.queueNumber}
-                  </h3>
-                  <p className="text-xl font-bold mb-8 text-white">{lastQueued.patientName}</p>
+                  <p className="text-zinc-400 font-black uppercase tracking-[0.4em] text-[10px] mb-6">Patient Successfully Assigned</p>
+                  
+                  <div className="mb-8">
+                    <h3 className="text-7xl font-black tracking-tighter italic leading-none mb-4">
+                      {lastQueued.queueNumber}
+                    </h3>
+                    <div className="h-1 w-20 bg-indigo-500 mx-auto rounded-full"></div>
+                  </div>
+
+                  <p className="text-xl font-black text-zinc-900 uppercase tracking-tight mb-10">{lastQueued.patientName}</p>
+                  
                   <button 
                     onClick={() => window.print()}
-                    className="w-full py-4 bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl flex items-center justify-center gap-2 font-bold transition-all"
+                    className="w-full py-5 bg-black text-white rounded-2xl flex items-center justify-center gap-4 font-black text-xs uppercase tracking-widest hover:bg-indigo-600 transition-all duration-300 active:scale-95"
                   >
-                    <Printer size={18} /> Print Ticket Again
+                    <Printer size={20} /> Force Re-Print Stub
                   </button>
                 </div>
+              </motion.div>
+            ) : (
+              <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                className="flex-1 border-2 border-dashed border-white/5 rounded-[3rem] flex flex-col items-center justify-center text-center p-12 opacity-30"
+              >
+                 <div className="w-20 h-20 bg-white/5 rounded-[2rem] flex items-center justify-center mb-8">
+                    <LayoutGrid size={32} />
+                 </div>
+                 <p className="text-xs font-black uppercase tracking-[0.3em] leading-relaxed">System Ready<br/>Awaiting Transaction</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -313,38 +369,65 @@ export default function TriagePage() {
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsModalOpen(false)}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/90 backdrop-blur-xl"
             />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden relative z-10"
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-zinc-900 w-full max-w-4xl rounded-[3.5rem] shadow-2xl overflow-hidden relative z-10 border border-white/10 p-12"
             >
-              <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div className="flex justify-between items-start mb-12">
                 <div>
-                   <h2 className="text-xl font-black text-slate-900">Select Classification</h2>
-                   <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{selectedPatient?.patientName}</p>
+                   <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase mb-2">Assign Classification</h2>
+                   <p className="text-[11px] font-black text-indigo-500 uppercase tracking-[0.4em]">{selectedPatient?.patientName}</p>
                 </div>
-                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                  <X size={24} />
+                <button onClick={() => setIsModalOpen(false)} className="p-4 hover:bg-white/5 rounded-2xl transition-colors text-zinc-500">
+                  <X size={32} />
                 </button>
               </div>
-              <div className="p-8 grid grid-cols-2 gap-4">
-                {classifications.map(c => (
-                  <button
-                    key={c}
-                    disabled={loading}
-                    onClick={() => addToQueue(c)}
-                    className="p-6 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black text-slate-600 uppercase tracking-widest hover:bg-indigo-600 hover:text-white hover:border-indigo-600 hover:shadow-xl hover:shadow-indigo-100 transition-all duration-300"
-                  >
-                    {c}
-                  </button>
-                ))}
+
+              <div className="grid grid-cols-2 gap-6">
+                {classifications.map(c => {
+                  const isRegular = c === 'Regular';
+                  return (
+                    <button
+                      key={c}
+                      disabled={loading}
+                      onClick={() => addToQueue(c)}
+                      className={`group relative p-8 rounded-[2rem] text-left border-2 transition-all duration-500 overflow-hidden active:scale-95 ${
+                        isRegular 
+                        ? 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20' 
+                        : 'bg-indigo-600/10 border-indigo-600/20 hover:bg-indigo-600 hover:border-indigo-600'
+                      }`}
+                    >
+                      <div className={`text-[10px] font-black uppercase tracking-[0.3em] mb-2 ${isRegular ? 'text-zinc-500' : 'text-indigo-400 group-hover:text-indigo-200'}`}>
+                        {isRegular ? 'Standard Queue' : 'Priority Access'}
+                      </div>
+                      <div className={`text-xl font-black italic tracking-tighter uppercase ${isRegular ? 'text-white' : 'text-indigo-500 group-hover:text-white'}`}>
+                        {c}
+                      </div>
+                      
+                      {!isRegular && (
+                         <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-30 transition-opacity">
+                            <ShieldCheck size={40} className="text-white" />
+                         </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
+
+              <div className="mt-12 pt-8 border-t border-white/5 text-center">
+                 <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest italic">Note: Priority assignments automatically receive a 'P-' designation.</p>
+              </div>
+
               {loading && (
-                <div className="absolute inset-0 bg-white/60 flex items-center justify-center backdrop-blur-[2px]">
-                   <RefreshCcw size={40} className="text-indigo-600 animate-spin" />
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-md">
+                   <div className="flex flex-col items-center gap-6">
+                      <RefreshCcw size={60} className="text-indigo-500 animate-spin" />
+                      <p className="text-xs font-black uppercase tracking-[0.5em] text-white animate-pulse">Processing_Queue_Entry...</p>
+                   </div>
                 </div>
               )}
             </motion.div>

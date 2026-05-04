@@ -1,39 +1,39 @@
 import { NextResponse } from 'next/server';
-import { getPool, sql } from '@/lib/db';
+import { getHospitalPool, getQueuePool, sql } from '@/lib/db';
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const dateParam = searchParams.get('date');
-    const pool = await getPool();
+    const hospitalPool = await getHospitalPool();
+    const queuePool = await getQueuePool();
     
     // Use date from param if provided, otherwise use today's date
     const dateSql = dateParam 
       ? `'${dateParam}'` 
       : "FORMAT(GETDATE(), 'MM-dd-yyyy')";
 
-    // Fetch currently queued patients for today to filter them out
-    const queuedResult = await pool.request()
+    // Fetch currently queued patients for today from the LOCAL Queue DB
+    const queuedResult = await queuePool.request()
       .query(`
         SELECT emrId 
-        FROM HospitalQueueDB.dbo.Queues 
+        FROM Queues 
         WHERE status IN ('Pending', 'Calling') 
         AND CAST(createdAt AS DATE) = CAST(GETDATE() AS DATE)
       `);
     const queuedIds = new Set(queuedResult.recordset.map(r => r.emrId));
 
-    // Fetch EMR list from medilogs
-    const result = await pool.request()
+    // Fetch EMR list from the HOSPITAL DB
+    const result = await hospitalPool.request()
       .query(`
         SELECT 
           TRIM(enccode) as id,
           TRIM(hpercode) as patientId,
-          patfirst + ' ' + patlast as patientName,
+          ISNULL(patfirst, '') + ' ' + ISNULL(patlast, '') as patientName,
           tsdesc as serviceType,
           opddate as appointmentTime
         FROM medilogs.opd.active_list(${dateSql}, 'ALL')
         WHERE tsdesc NOT LIKE '%DIALYSIS%'
-        AND TRIM(opd_loc) = 'OPDMAIN'
         ORDER BY opddate ASC
       `);
     

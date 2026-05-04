@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Play, CheckCircle, Clock, RefreshCcw, LogOut, DoorOpen, Settings2, Filter, Check, XCircle, Hospital, ArrowRight } from 'lucide-react';
 
-export default function StaffPage() {
+function StaffContent() {
+  const searchParams = useSearchParams();
   const [queue, setQueue] = useState([]);
   const [callingPatients, setCallingPatients] = useState([]); // Multiple active patients
   const [loading, setLoading] = useState(false);
@@ -14,6 +16,45 @@ export default function StaffPage() {
   const [selectedServices, setSelectedServices] = useState(['ALL']);
   const [availableServices, setAvailableServices] = useState([]);
   const [authUser, setAuthUser] = useState(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [newVideoUrl, setNewVideoUrl] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [localVideos, setLocalVideos] = useState([]);
+
+  const doorServices = {
+    'Door 1': 'Surgery, ENT, Ortho, Urology, ABTC',
+    'Door 2': 'Medical, Pediatrics, Nephro',
+    'Door 3': 'OB-Gynecology',
+    'Door 4': 'Ophthalmology, Dermatology',
+    'Door 5': 'Psychiatry / Psych Cases'
+  };
+
+  const doorKeywords = {
+    'Door 1': ['SURGERY', 'SURGICAL', 'ENT', 'ORTHO', 'UROLOGY', 'ABTC'],
+    'Door 2': ['MEDICAL', 'PEDIATRIC', 'NEPHRO'],
+    'Door 3': ['OB-GYNE', 'OBSTETRICS', 'GYNECOLOGY'],
+    'Door 4': ['OPHTHAL', 'DERMA'],
+    'Door 5': ['PSYCH']
+  };
+
+  const isRelevant = (serviceType, door) => {
+    if (!serviceType) return false;
+    const keywords = doorKeywords[door] || [];
+    const type = serviceType.toUpperCase();
+    return keywords.some(k => type.includes(k));
+  };
+
+  useEffect(() => {
+    const doorParam = searchParams.get('door');
+    if (doorParam) {
+      const doorName = `Door ${doorParam}`;
+      if (doorServices[doorName]) {
+        setSelectedDoor(doorName);
+        setSelectedServices(['ALL']); // Auto-subscribe to all relevant door services
+        setIsConfigured(true);
+      }
+    }
+  }, [searchParams]);
 
   const fetchAuth = async () => {
     try {
@@ -52,7 +93,11 @@ export default function StaffPage() {
       const data = await res.json();
       if (Array.isArray(data)) {
         setQueue(data);
-        const actives = data.filter(p => p.status === 'Calling' && p.door === selectedDoor);
+        const actives = data.filter(p => 
+          p.status === 'Calling' && 
+          p.door === selectedDoor && 
+          isRelevant(p.serviceType, selectedDoor)
+        );
         setCallingPatients(actives);
       }
     } catch (error) {
@@ -68,10 +113,38 @@ export default function StaffPage() {
   useEffect(() => {
     if (isConfigured) {
       fetchQueue();
+      // Fetch current video URL
+      const fetchSettings = async () => {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (data.video_url) setNewVideoUrl(data.video_url);
+        
+        // Fetch local video library
+        const videoRes = await fetch('/api/videos');
+        const videoData = await videoRes.json();
+        if (Array.isArray(videoData)) setLocalVideos(videoData);
+      };
+      fetchSettings();
       const interval = setInterval(fetchQueue, 3000);
       return () => clearInterval(interval);
     }
   }, [isConfigured, selectedDoor]);
+
+  const handleSaveSettings = async () => {
+    setIsSaving(true);
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'video_url', value: newVideoUrl }),
+      });
+      setIsSettingsOpen(false);
+    } catch (error) {
+      alert('Failed to save settings');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleCall = async (id) => {
     setLoading(true);
@@ -99,7 +172,23 @@ export default function StaffPage() {
       });
       fetchQueue();
     } catch (error) {
-      alert('Failed to complete');
+      alert('Failed to complete session');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNoShow = async (id) => {
+    setLoading(true);
+    try {
+      await fetch('/api/queue', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'Skipped', door: null }),
+      });
+      fetchQueue();
+    } catch (error) {
+      alert('Failed to skip patient');
     } finally {
       setLoading(false);
     }
@@ -128,6 +217,7 @@ export default function StaffPage() {
   const filteredQueue = queue.filter(p => 
     p.status === 'Pending' && 
     p.recordStatus === 'Ready' &&
+    isRelevant(p.serviceType, selectedDoor) &&
     (selectedServices.includes('ALL') || selectedServices.includes(p.serviceType))
   );
 
@@ -154,120 +244,10 @@ export default function StaffPage() {
 
   if (!isConfigured) {
     return (
-      <div className="fixed inset-0 bg-[#050505] z-[9999] flex flex-col font-sans overflow-hidden">
-        {/* Dynamic Scanline/Grid Effect for Fullscreen Console */}
-        <div className="absolute inset-0 pointer-events-none opacity-20">
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]"></div>
-        </div>
-        
-        {/* Ambient background glows */}
-        <div className="absolute top-0 left-0 w-[50%] h-[50%] bg-indigo-600/10 rounded-full blur-[150px] -z-0"></div>
-        <div className="absolute bottom-0 right-0 w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[150px] -z-0"></div>
-
-        <div className="flex-1 flex flex-col p-20 relative z-10">
-          <header className="flex justify-between items-end mb-24">
-            <div className="flex items-center gap-8">
-              <div className="w-24 h-24 bg-indigo-600 rounded-[2rem] flex items-center justify-center text-white shadow-[0_0_50px_rgba(79,70,229,0.4)] animate-pulse">
-                <Settings2 size={48} />
-              </div>
-              <div>
-                <h1 className="text-6xl font-black text-white tracking-tighter uppercase italic leading-none">Console <span className="text-indigo-500 not-italic">Setup</span></h1>
-                <p className="text-slate-500 font-black uppercase tracking-[0.5em] text-xs mt-4">System Initialization Protocol v2.0</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-slate-700 font-black text-sm uppercase tracking-widest mb-1 italic">Link_Status</p>
-              <p className="text-indigo-500 font-black text-2xl animate-pulse">ENCRYPTED_ONLINE</p>
-            </div>
-          </header>
-
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-24 flex-1">
-            <div className="space-y-12">
-              <label className="text-xs font-black text-slate-500 uppercase tracking-[0.4em] flex items-center gap-4">
-                <span className="w-12 h-[1px] bg-indigo-500/30"></span>
-                STATION_ASSIGNMENT
-              </label>
-              <div className="grid grid-cols-1 gap-6">
-                {['Door 1', 'Door 2'].map(door => (
-                  <button
-                    key={door}
-                    onClick={() => setSelectedDoor(door)}
-                    className={`p-12 rounded-[3.5rem] border-2 text-3xl font-black transition-all duration-500 flex items-center justify-between group relative overflow-hidden ${
-                      selectedDoor === door 
-                        ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_60px_rgba(79,70,229,0.4)] scale-[1.02]' 
-                        : 'bg-white/5 border-white/5 text-slate-600 hover:border-white/20 hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-8 relative z-10">
-                      <DoorOpen size={40} className={selectedDoor === door ? 'text-white' : 'text-slate-800 group-hover:text-white transition-colors'} />
-                      {door.toUpperCase()}
-                    </div>
-                    {selectedDoor === door && (
-                      <div className="relative z-10 flex items-center gap-4">
-                        <span className="text-xs font-black uppercase tracking-widest text-indigo-200 italic">Primary_Active</span>
-                        <div className="w-4 h-4 rounded-full bg-white shadow-[0_0_20px_white] animate-ping"></div>
-                      </div>
-                    )}
-                    {/* Interior glow for selected */}
-                    {selectedDoor === door && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent"></div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-12">
-              <label className="text-xs font-black text-slate-500 uppercase tracking-[0.4em] flex items-center gap-4">
-                <span className="w-12 h-[1px] bg-indigo-500/30"></span>
-                SERVICE_STREAM_SUBSCRIPTION
-              </label>
-              <div className="grid grid-cols-1 gap-4 max-h-[500px] overflow-y-auto p-8 scrollbar-hide bg-black/40 rounded-[3.5rem] border border-white/5 shadow-inner">
-                <button
-                  onClick={() => toggleService('ALL')}
-                  className={`p-8 rounded-3xl border-2 text-left flex justify-between items-center transition-all duration-500 ${
-                    selectedServices.includes('ALL')
-                      ? 'bg-white text-black border-white shadow-[0_0_40px_rgba(255,255,255,0.2)]'
-                      : 'bg-white/5 border-transparent text-slate-700 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <span className="font-black text-lg uppercase tracking-[0.2em] italic">Subscribe_All_Streams</span>
-                  {selectedServices.includes('ALL') && <Check size={24} strokeWidth={4} />}
-                </button>
-                {availableServices.length > 0 ? availableServices.map(service => (
-                  <button
-                    key={service}
-                    onClick={() => toggleService(service)}
-                    className={`p-7 rounded-2xl border-2 text-left flex justify-between items-center transition-all duration-500 ${
-                      selectedServices.includes(service)
-                        ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400 shadow-lg shadow-indigo-900/20'
-                        : 'bg-white/5 border-transparent text-slate-700 hover:text-white hover:bg-white/10'
-                    }`}
-                  >
-                    <span className="font-black text-xs uppercase tracking-[0.2em] truncate max-w-[400px]">{service}</span>
-                    {selectedServices.includes(service) && <Check size={20} strokeWidth={4} />}
-                  </button>
-                )) : (
-                  <div className="p-20 text-center text-slate-800 text-xs font-black uppercase tracking-[0.5em] italic animate-pulse">Synchronizing_With_Emr_Core...</div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <footer className="mt-24 grid grid-cols-1 lg:grid-cols-4 gap-10">
-            <button 
-              onClick={() => setIsConfigured(true)}
-              className="lg:col-span-3 py-10 bg-white text-black rounded-[3rem] text-xl font-black uppercase tracking-[0.6em] hover:bg-indigo-500 hover:text-white transition-all duration-700 shadow-2xl hover:shadow-[0_0_100px_rgba(79,70,229,0.6)] transform hover:-translate-y-2 italic flex items-center justify-center gap-6"
-            >
-              INITIALIZE_STATION_RUNTIME <ArrowRight size={32} />
-            </button>
-            <button 
-              onClick={handleLogout}
-              className="py-10 bg-white/5 text-slate-700 border border-white/5 rounded-[3rem] font-black uppercase tracking-[0.4em] text-sm hover:text-rose-500 hover:bg-rose-500/10 transition-all duration-500 flex items-center justify-center gap-4"
-            >
-              <LogOut size={24} /> TERMINATE
-            </button>
-          </footer>
+      <div className="fixed inset-0 bg-[#050505] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+          <p className="text-slate-500 font-black uppercase tracking-[0.4em] text-[10px] animate-pulse">Initializing Console...</p>
         </div>
       </div>
     );
@@ -289,27 +269,38 @@ export default function StaffPage() {
               <Hospital size={26} strokeWidth={2.5} />
             </div>
             <div>
-              <h1 className="text-2xl font-black tracking-tighter text-white uppercase italic">QURE <span className="text-indigo-500 not-italic">CONSOLE</span></h1>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-                </span>
-                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">{selectedDoor} | ACTIVE_LINK</p>
+              <div className="flex items-center gap-4">
+                <h1 className="text-2xl font-black tracking-tighter text-white uppercase italic">QURE <span className="text-indigo-500 not-italic">CONSOLE</span></h1>
+                {(selectedDoor === 'Door 1' || selectedDoor === 'Door 2') && (
+                  <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full text-[8px] font-black uppercase tracking-widest animate-pulse">
+                    Priority Queue Active
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-4 mt-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                  </span>
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white italic">{selectedDoor}</p>
+                </div>
+                <div className="w-[1px] h-3 bg-white/10"></div>
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 truncate max-w-[400px]">{doorServices[selectedDoor]}</p>
               </div>
             </div>
           </Link>
           
           <div className="flex items-center gap-6">
-             <div className="flex items-center gap-4 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md hidden xl:flex">
-               <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+             <div className="flex items-center gap-4 px-6 py-3 bg-white/[0.03] border border-white/5 rounded-2xl backdrop-blur-md hidden xl:flex shadow-2xl">
+               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                 OPERATOR: <span className="text-white">{authUser?.actual_name || authUser?.user_name}</span>
+                 System Operator: <span className="text-white">{authUser?.actual_name || authUser?.user_name}</span>
                </span>
              </div>
              <div className="flex items-center gap-3">
                <button 
-                 onClick={() => setIsConfigured(false)}
+                 onClick={() => setIsSettingsOpen(true)}
                  className="p-4 bg-white/5 hover:bg-indigo-600/20 border border-white/10 hover:border-indigo-500/50 rounded-2xl text-slate-400 hover:text-white transition-all duration-500 group"
                  title="System Configuration"
                >
@@ -327,91 +318,123 @@ export default function StaffPage() {
         </header>
       </div>
 
-      <main className="flex-1 p-10 flex flex-col gap-12 w-full overflow-y-auto scrollbar-hide">
-        {/* Top Section: Live Sessions (Expanded Grid) */}
-        <div className="w-full flex flex-col gap-8">
-          <div className="flex items-center justify-between px-2">
-             <h2 className="text-xs font-black text-slate-500 uppercase tracking-[0.4em] flex items-center gap-4">
-               <span className="w-8 h-[1px] bg-indigo-500/30"></span>
-               Live_Active_Sessions
-               <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-4 py-1 rounded-full text-[10px] font-black">{callingPatients.length}</span>
-             </h2>
-             {callingPatients.length > 0 && (
-               <div className="text-[10px] font-black text-slate-600 uppercase tracking-widest animate-pulse">Monitor Link Stable</div>
-             )}
+      <main className="flex-1 px-10 py-6 flex flex-col gap-8 w-full overflow-y-auto scrollbar-hide">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
+          {/* Left Column: Live Sessions (3/4) */}
+          <div className="lg:col-span-3 flex flex-col gap-8">
+            <div className="flex items-center justify-between px-2">
+               <h2 className="text-xs font-black text-slate-500 uppercase tracking-[0.4em] flex items-center gap-4">
+                 <span className="w-8 h-[1px] bg-indigo-500/30"></span>
+                 Active Sessions
+                 <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-4 py-1 rounded-full text-[10px] font-black">{callingPatients.length}</span>
+               </h2>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <AnimatePresence mode="popLayout">
+                {callingPatients.map((p) => (
+                  <motion.div 
+                    key={p.id}
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="bg-[#0f172a]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-5 relative overflow-hidden group hover:bg-[#0f172a]/60 transition-all duration-500"
+                  >
+                    <div className="relative z-10 flex flex-col gap-4">
+                      <div className="flex items-center justify-between">
+                         <ClassificationBadge classification={p.classification} />
+                         <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest px-2 py-0.5 bg-indigo-500/10 rounded-full border border-indigo-500/20 italic">Calling</span>
+                      </div>
+                       <div className="flex items-center gap-6">
+                         <div className="flex-1 min-w-0">
+                            <div className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-1">{p.queueNumber}</div>
+                            <div className="text-xl font-black text-white uppercase truncate tracking-tight">{p.patientName}</div>
+                            <div className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest truncate mt-1">{p.serviceType}</div>
+                         </div>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 pt-2 border-t border-white/5">
+                         <button onClick={() => handleComplete(p.id)} disabled={loading} className="col-span-2 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all flex items-center justify-center gap-2"><CheckCircle size={14} /> FINISH</button>
+                         <button onClick={() => handleNoShow(p.id)} disabled={loading} className="py-3 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-xl font-black text-[9px] uppercase transition-all flex items-center justify-center" title="Not Present"><XCircle size={16} /></button>
+                         <button onClick={() => handleCall(p.id)} disabled={loading} className="py-3 bg-white/5 hover:bg-indigo-500 text-zinc-400 hover:text-white rounded-xl font-black text-[9px] uppercase transition-all flex items-center justify-center" title="Re-broadcast"><RefreshCcw size={16} /></button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+                {callingPatients.length === 0 && (
+                  <div className="col-span-full py-16 text-center border border-dashed border-white/5 rounded-3xl flex flex-col items-center bg-white/[0.01]">
+                    <p className="text-slate-700 font-black uppercase tracking-[0.6em] text-[10px]">No active sessions</p>
+                  </div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-8">
-            <AnimatePresence mode="popLayout">
-              {callingPatients.map((p) => (
-                <motion.div 
-                  key={p.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-[3.5rem] p-10 text-white shadow-[0_20px_50px_rgba(79,70,229,0.3)] relative overflow-hidden group border border-white/10"
-                >
-                  <div className="relative z-10">
-                    <div className="flex items-center justify-between mb-8">
-                       <div className="flex items-center gap-3">
-                         <ClassificationBadge classification={p.classification} size="lg" />
-                       </div>
-                       <span className="text-[9px] font-black text-indigo-200 uppercase tracking-[0.2em]">{p.serviceType}</span>
+
+          {/* Right Column: Skipped Patients Archive (1/4) */}
+          <div className="flex flex-col gap-8 bg-black/20 border border-white/5 rounded-[3rem] p-6 backdrop-blur-sm">
+             <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] flex items-center gap-4">
+               Missed Calls
+               <span className="bg-white/5 text-slate-400 border border-white/5 px-3 py-0.5 rounded-full text-[9px] font-black">{queue.filter(p => p.status === 'Skipped' && isRelevant(p.serviceType, selectedDoor)).length}</span>
+             </h2>
+            
+            <div className="flex flex-col gap-4 overflow-y-auto max-h-[500px] pr-2 scrollbar-hide">
+              <AnimatePresence mode="popLayout">
+                {queue.filter(p => p.status === 'Skipped' && isRelevant(p.serviceType, selectedDoor)).map((p) => (
+                  <motion.div 
+                    key={p.id}
+                    layout
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    className="bg-white/[0.03] p-5 rounded-[2.5rem] border border-white/5 flex items-center justify-between group hover:border-rose-500/40 hover:bg-white/[0.06] transition-all duration-500 relative overflow-hidden"
+                  >
+                     <div className="min-w-0 relative z-10">
+                       <div className="text-2xl font-black text-white tracking-tighter mb-1 leading-none group-hover:text-indigo-400 transition-colors duration-500">{p.queueNumber}</div>
+                       <div className="text-[9px] font-black text-slate-500 uppercase truncate max-w-[120px] italic">{p.patientName}</div>
                     </div>
-                    
-                    <div className="text-[9rem] font-black mb-2 tracking-tighter leading-none text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">{p.queueNumber}</div>
-                    <div className="text-3xl font-black truncate mb-10 tracking-tight text-white/90">{p.patientName}</div>
-                    
-                    <div className="flex gap-4">
-                      <button 
-                        onClick={() => handleComplete(p.id)}
-                        className="flex-1 py-7 bg-white text-indigo-700 rounded-[2rem] font-black text-sm uppercase tracking-[0.3em] hover:bg-indigo-50 transition-all duration-500 flex items-center justify-center gap-4 shadow-2xl group/btn"
-                      >
-                        <CheckCircle size={20} strokeWidth={3} className="group-hover/btn:scale-125 transition-transform" /> FINISH_SESSION
-                      </button>
-                      <button 
-                        onClick={() => handleCall(p.id)}
-                        className="p-7 bg-indigo-500/30 hover:bg-indigo-400/50 border border-white/20 rounded-[2rem] transition-all duration-500 flex items-center justify-center"
-                        title="Re-broadcast"
-                      >
-                        <RefreshCcw size={22} className="hover:rotate-180 transition-transform duration-700" />
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => handleCall(p.id)}
+                      disabled={loading}
+                      className="w-14 h-14 bg-white/5 group-hover:bg-rose-500 text-zinc-400 group-hover:text-white rounded-2xl transition-all duration-500 shadow-xl flex items-center justify-center relative z-10"
+                      title="Recall Patient"
+                    >
+                      <Play size={20} fill="currentColor" />
+                    </button>
+                     <div className="absolute top-0 right-0 w-[1px] h-full bg-gradient-to-b from-transparent via-white/5 to-transparent"></div>
+                  </motion.div>
+                ))}
+                {queue.filter(p => p.status === 'Skipped' && isRelevant(p.serviceType, selectedDoor)).length === 0 && (
+                  <div className="py-20 text-center opacity-10">
+                    <Clock size={32} className="mx-auto mb-4" />
+                    <p className="text-[8px] font-black uppercase tracking-widest">No missed calls</p>
                   </div>
-                  
-                  {/* Cyber-UI decorative element */}
-                  <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-                </motion.div>
-              ))}
-              
-              {callingPatients.length === 0 && (
-                <div className="col-span-full p-32 text-center border-2 border-dashed border-white/5 rounded-[5rem] flex flex-col items-center bg-white/[0.01] backdrop-blur-sm group">
-                  <div className="w-24 h-24 bg-white/5 rounded-[2.5rem] flex items-center justify-center text-slate-800 mb-8 group-hover:text-indigo-500 transition-colors duration-500 border border-white/5">
-                    <Users size={48} />
-                  </div>
-                  <p className="text-slate-700 font-black uppercase tracking-[1em] text-xs">AWAITING_ACTIVE_PROTOCOL</p>
-                </div>
-              )}
-            </AnimatePresence>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
 
         {/* Bottom Section: Data Streams (Departmental Queues) */}
-        <div className="w-full flex flex-col gap-10 pb-32">
-          <div className="flex items-center justify-between bg-white/[0.03] p-10 rounded-[4rem] border border-white/5 backdrop-blur-xl">
-            <div className="flex items-center gap-8">
-              <div className="w-20 h-20 bg-indigo-600/10 rounded-3xl flex items-center justify-center text-indigo-500 border border-indigo-500/20">
-                <Filter size={36} />
+        <div className="w-full flex flex-col gap-6 pb-20">
+          <div className="flex items-center justify-between bg-white/[0.02] px-8 py-6 rounded-[2.5rem] border border-white/5 backdrop-blur-xl">
+            <div className="flex items-center gap-6">
+              <div className="w-14 h-14 bg-indigo-600/10 rounded-2xl flex items-center justify-center text-indigo-500 border border-indigo-500/20">
+                <Filter size={24} />
               </div>
               <div>
-                <h2 className="text-4xl font-black text-white tracking-tighter uppercase italic">LIVE_QUEUE_STREAMS</h2>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-1">Direct System Feed</p>
+                <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic leading-none">Queue Streams</h2>
+                <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mt-1">Direct System Feed</p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] mb-1">AGGREGATE_PENDING</p>
-              <p className="text-5xl font-black text-indigo-500 tracking-tighter">{filteredQueue.length}</p>
+            <div className="flex items-center gap-4 text-right">
+              <div className="w-px h-10 bg-white/5 mx-4 hidden md:block"></div>
+              <div>
+                <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-0.5">Aggregate Pending</p>
+                <div className="flex items-center justify-end gap-3">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                  <p className="text-4xl font-black text-white tracking-tighter">{filteredQueue.length}</p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -425,54 +448,50 @@ export default function StaffPage() {
                 if (serviceQueue.length === 0 && !selectedServices.includes(service)) return null;
                 
                 return (
-                  <div key={service} className="w-[480px] flex flex-col bg-white/[0.01] rounded-[4.5rem] p-12 border border-white/5 backdrop-blur-3xl hover:bg-white/[0.03] transition-all duration-700">
-                    <div className="flex items-center justify-between mb-12 px-2">
-                      <div className="flex items-center gap-6">
-                        <div className="w-4 h-4 rounded-full bg-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.8)]"></div>
-                        <h3 className="text-sm font-black uppercase tracking-[0.3em] text-white truncate max-w-[240px] italic">{service}</h3>
+                  <div key={service} className="w-[380px] flex flex-col bg-white/[0.01] rounded-[3rem] p-8 border border-white/5 backdrop-blur-3xl hover:bg-white/[0.02] transition-all duration-700">
+                    <div className="flex items-center justify-between mb-8 px-2">
+                      <div className="flex items-center gap-4">
+                        <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.6)]"></div>
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-white truncate max-w-[180px] italic">{service}</h3>
                       </div>
-                      <span className="text-[11px] font-black bg-white/5 border border-white/10 px-5 py-2 rounded-2xl text-indigo-400 italic shadow-xl">{serviceQueue.length} PENDING</span>
+                      <span className="text-[9px] font-black bg-white/5 border border-white/10 px-4 py-1.5 rounded-xl text-indigo-400 italic">{serviceQueue.length} PENDING</span>
                     </div>
                     
-                    <div className="space-y-6 flex-1 overflow-y-visible">
+                    <div className="space-y-3 flex-1 overflow-y-visible">
                       <AnimatePresence mode="popLayout">
                         {serviceQueue.slice(0, 10).map((p) => (
                           <motion.div 
                             key={p.id}
                             layout
-                            initial={{ opacity: 0, y: 20 }}
+                            initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            className="bg-white/[0.02] p-10 rounded-[3rem] border border-white/5 hover:border-indigo-500/40 hover:bg-white/[0.04] transition-all duration-500 group relative overflow-hidden"
+                            exit={{ opacity: 0, scale: 0.98 }}
+                            className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 hover:border-indigo-500/40 hover:bg-white/[0.04] transition-all duration-500 group relative overflow-hidden"
                           >
-                            <div className="flex items-center justify-between gap-8 relative z-10">
-                              <div className="flex-1">
-                                <div className="mb-3">
-                                  <ClassificationBadge classification={p.classification} />
-                                </div>
-                                <div className="text-7xl font-black text-white tracking-tighter mb-2 leading-none group-hover:text-indigo-400 transition-colors duration-500">{p.queueNumber}</div>
-                                <div className="font-black text-slate-500 text-xs truncate max-w-[220px] uppercase italic tracking-wider">
+                            <div className="flex items-center justify-between gap-4 relative z-10">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-2xl font-black text-white tracking-tighter mb-0.5 leading-none group-hover:text-indigo-400 transition-colors duration-500">{p.queueNumber}</div>
+                                <div className="font-black text-slate-500 text-[10px] truncate uppercase italic tracking-wider">
                                   {p.patientName}
                                 </div>
                               </div>
                               <button 
                                 onClick={() => handleCall(p.id)}
                                 disabled={loading}
-                                className="w-20 h-20 bg-white text-black rounded-[2rem] hover:bg-indigo-500 hover:text-white transition-all duration-500 shadow-2xl flex items-center justify-center group-hover:scale-110 active:scale-95 group-hover:shadow-[0_0_30px_rgba(79,70,229,0.4)]"
+                                className="w-12 h-12 bg-white/5 text-white rounded-xl hover:bg-white hover:text-black transition-all duration-500 flex items-center justify-center group-hover:scale-105"
                               >
-                                <Play size={28} fill="currentColor" />
+                                <Play size={18} fill="currentColor" />
                               </button>
                             </div>
-                            {/* Card Accent */}
-                            <div className="absolute top-0 right-0 w-[2px] h-full bg-gradient-to-b from-transparent via-indigo-500/30 to-transparent"></div>
+                            <div className="absolute top-0 right-0 w-[1px] h-full bg-gradient-to-b from-transparent via-indigo-500/20 to-transparent"></div>
                           </motion.div>
                         ))}
                       </AnimatePresence>
                       
                       {serviceQueue.length > 10 && (
                         <div className="text-center py-6">
-                          <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] italic">+{serviceQueue.length - 10} MORE_IN_STREAM</p>
-                        </div>
+                           <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] italic">+{serviceQueue.length - 10} more in stream</p>
+                         </div>
                       )}
 
                       {serviceQueue.length === 0 && (
@@ -489,6 +508,127 @@ export default function StaffPage() {
           </div>
         </div>
       </main>
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {isSettingsOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsSettingsOpen(false)}
+              className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-4xl bg-zinc-900 border border-white/10 rounded-[3rem] p-12 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="absolute top-0 right-0 p-12 opacity-5">
+                <Settings2 size={160} />
+              </div>
+              
+              <div className="relative z-10 flex flex-col h-full">
+                <div className="mb-10 flex items-center justify-between">
+                   <div>
+                      <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase mb-2">Display Console</h2>
+                      <p className="text-[11px] font-black text-zinc-500 uppercase tracking-[0.4em]">Media & Broadcast Infrastructure</p>
+                   </div>
+                   <button 
+                      onClick={() => { setNewVideoUrl('PLAYLIST_ALL'); handleSaveSettings(); }}
+                      className="px-8 py-4 bg-indigo-500 hover:bg-indigo-400 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] transition-all shadow-xl shadow-indigo-500/20 flex items-center gap-4"
+                   >
+                      <Play size={16} fill="currentColor" /> Play All Local Media
+                   </button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto pr-4 scrollbar-hide">
+                  <div className="space-y-12">
+                    {/* Local Video Library */}
+                    <div className="flex flex-col gap-6">
+                      <div className="flex items-center justify-between">
+                         <label className="text-xs font-black text-indigo-400 uppercase tracking-[0.4em] ml-2">Local Media Library</label>
+                         <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">{localVideos.length} Files Found</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-6">
+                        {localVideos.map((video) => (
+                           <button 
+                             key={video.url}
+                             onClick={() => setNewVideoUrl(video.url)}
+                             className={`group relative aspect-video rounded-3xl overflow-hidden border-2 transition-all duration-500 ${newVideoUrl === video.url ? 'border-indigo-500 ring-4 ring-indigo-500/20' : 'border-white/10 hover:border-white/30'}`}
+                           >
+                             <video 
+                               src={video.url} 
+                               className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" 
+                               onMouseEnter={e => e.target.play()}
+                               onMouseLeave={e => { e.target.pause(); e.target.currentTime = 0; }}
+                               muted
+                             />
+                             <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60"></div>
+                             <div className="absolute bottom-4 left-6 right-6 flex items-center justify-between">
+                                <span className="text-[10px] font-black text-white uppercase tracking-wider truncate mr-4">{video.name}</span>
+                                {newVideoUrl === video.url && (
+                                   <div className="shrink-0 w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center text-white">
+                                      <Check size={14} strokeWidth={4} />
+                                   </div>
+                                )}
+                             </div>
+                           </button>
+                        ))}
+                        {localVideos.length === 0 && (
+                           <div className="col-span-full py-12 bg-white/[0.02] border border-dashed border-white/10 rounded-3xl flex flex-col items-center justify-center opacity-40">
+                              <Play size={32} className="mb-4" />
+                              <p className="text-[10px] font-black uppercase tracking-widest text-center">No local videos found in /public folder</p>
+                           </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Advanced Source */}
+                    <div className="flex flex-col gap-6">
+                      <label className="text-xs font-black text-amber-400 uppercase tracking-[0.4em] ml-2">External Stream Source (YouTube)</label>
+                      <div className="relative group">
+                        <input 
+                          type="text" 
+                          value={newVideoUrl}
+                          onChange={(e) => setNewVideoUrl(e.target.value)}
+                          placeholder="Paste YouTube embed URL here..."
+                          className="w-full bg-black/40 border border-white/10 rounded-2xl px-8 py-5 text-white font-medium focus:outline-none focus:border-amber-500/50 transition-all group-hover:bg-black/60"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-10 mt-10 border-t border-white/5 flex items-center gap-6">
+                  <button 
+                    onClick={handleSaveSettings}
+                    disabled={isSaving}
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white py-5 rounded-[1.5rem] font-black text-sm uppercase tracking-[0.2em] transition-all shadow-2xl shadow-indigo-600/20 active:scale-95"
+                  >
+                    {isSaving ? 'Synchronizing_Broadcast...' : 'Push Configuration to Display'}
+                  </button>
+                  <button 
+                    onClick={() => setIsSettingsOpen(false)}
+                    className="px-12 bg-white/5 hover:bg-white/10 text-white py-5 rounded-[1.5rem] font-black text-sm uppercase tracking-widest transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+export default function StaffPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#050505] flex items-center justify-center text-white font-black uppercase tracking-widest">Initializing_System...</div>}>
+      <StaffContent />
+    </Suspense>
   );
 }
