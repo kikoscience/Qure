@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Qure Hospital Command Center V3.4
 
-## Getting Started
+A high-fidelity, real-time medical logistics and patient queue management system designed for modern hospital environments. Built with Next.js, Framer Motion, and Microsoft SQL Server.
 
-First, run the development server:
+---
 
+## 🚀 Quick Start (Docker Deployment)
+
+The fastest way to deploy the entire stack (App + MSSQL Database) on your Proxmox/Debian server.
+
+### Prerequisites
+- Docker & Docker Compose installed.
+- Minimum 4GB RAM (SQL Server requires 2GB+).
+
+### 1. Launch the Stack
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <your-repo-url>
+cd qure
+sudo docker-compose up -d --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Initialize the Database
+Connect to the database at `your-server-ip:1433` (Username: `sa`, Password: `VibeQ@123_SecurePassword`) and run:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```sql
+CREATE DATABASE HospitalQueueDB;
+GO
+USE HospitalQueueDB;
+GO
+CREATE TABLE Queues (
+    id INT PRIMARY KEY IDENTITY(1,1),
+    queueNumber NVARCHAR(50),
+    patientName NVARCHAR(255),
+    door NVARCHAR(50),
+    status NVARCHAR(50), 
+    classification NVARCHAR(50), 
+    serviceType NVARCHAR(255),
+    recordStatus NVARCHAR(50), 
+    recordRetrievedBy NVARCHAR(255),
+    updatedAt DATETIME DEFAULT GETDATE()
+);
+GO
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 🛠 Features
 
-To learn more about Next.js, take a look at the following resources:
+### 📺 Public Display Board
+- **Real-time SSE Streams**: Zero-latency patient calling notifications.
+- **Dual-Lane Logic**: Supports Priority vs. Regular queuing across 5 stations.
+- **Smart Infotainment**: Integrated YouTube stream with auto-embed conversion.
+- **Voice Announcements**: Automated high-fidelity text-to-speech for patient calls.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 🏥 Staff Station
+- **Multi-Station Control**: Nurses can call/re-broadcast patients for specific doors.
+- **Real-time Analytics**: Live view of pending vs. active patients in the queue.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 📂 Records Portal
+- **Logistics Pipeline**: Split-pane view for "Intake Queue" vs. "Retrieval Hub".
+- **Digital Chain of Custody**: Tracks chart printing and physical retrieval status.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## ⚙️ Configuration
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Environment variables are managed in `docker-compose.yml`:
+
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `QUEUE_DB_SERVER` | Internal hostname for the DB container | `db` |
+| `QUEUE_DB_USER` | SQL Admin username | `sa` |
+| `QUEUE_DB_PASSWORD` | Secure SQL Password | `VibeQ@123_SecurePassword` |
+| `NODE_ENV` | Application mode | `production` |
+
+---
+
+## 👨‍💻 Development
+
+To run locally without Docker:
+```bash
+npm install
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) to view the portal.
