@@ -28,6 +28,23 @@ export default function DisplayPage() {
     'Door 5': 'Psychiatry / Psych Cases'
   };
 
+  const getYouTubeEmbedUrl = (url) => {
+    if (!url) return '';
+    let videoId = '';
+    if (url.includes('v=')) {
+      videoId = url.split('v=')[1]?.split('&')[0];
+    } else if (url.includes('youtu.be/')) {
+      videoId = url.split('youtu.be/')[1]?.split('?')[0];
+    } else if (url.includes('embed/')) {
+      videoId = url.split('embed/')[1]?.split('?')[0];
+    }
+    
+    if (videoId) {
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&showinfo=0&rel=0&modestbranding=1&iv_load_policy=3`;
+    }
+    return url;
+  };
+
   const maskName = (name) => {
     if (!name) return '';
     return name.split(' ').map(word => {
@@ -42,10 +59,43 @@ export default function DisplayPage() {
   }, []);
 
   useEffect(() => {
-    const fetchQueue = async () => {
+    const processData = (data) => {
+      if (Array.isArray(data)) {
+        setQueue(data);
+        const serving = data.filter(p => p.status === 'Calling' && p.door);
+        const currentStates = serving.map(p => `${p.id}|${p.updatedAt || ''}`);
+        const prevStates = prevStatesRef.current;
+        const newStates = currentStates.filter(state => !prevStates.includes(state));
+        
+        if (newStates.length > 0 && prevStates.length > 0) {
+           if ('speechSynthesis' in window) {
+               window.speechSynthesis.cancel();
+           }
+           newStates.forEach(state => {
+               const id = parseInt(state.split('|')[0], 10);
+               const p = serving.find(x => x.id === id);
+               if (p && 'speechSynthesis' in window) {
+                   setIsSpeaking(true);
+                   const safeNumber = p.queueNumber.replace(/-/g, ' ');
+                   const msg = new SpeechSynthesisUtterance(`Calling patient number ${safeNumber}, to ${p.door}`);
+                   msg.rate = 0.85;
+                   msg.pitch = 1.1;
+                   msg.onend = () => setIsSpeaking(false);
+                   window.speechSynthesis.speak(msg);
+               }
+           });
+        }
+        prevStatesRef.current = currentStates;
+        setNowServing(serving);
+        setUpcoming(data.filter(p => p.status === 'Pending').slice(0, 8));
+      }
+    };
+
+    const fetchInitial = async () => {
       try {
         const res = await fetch('/api/queue');
         const data = await res.json();
+        processData(data);
         
         // Fetch Video URL from settings
         const settingsRes = await fetch('/api/settings');
@@ -58,46 +108,21 @@ export default function DisplayPage() {
               if (Array.isArray(videoData)) setVideoList(videoData);
            }
         }
-
-        if (Array.isArray(data)) {
-           setQueue(data);
-           
-           const serving = data.filter(p => p.status === 'Calling' && p.door);
-           const currentStates = serving.map(p => `${p.id}|${p.updatedAt || ''}`);
-           const prevStates = prevStatesRef.current;
-           const newStates = currentStates.filter(state => !prevStates.includes(state));
-           
-           if (newStates.length > 0 && prevStates.length > 0) {
-              if ('speechSynthesis' in window) {
-                  window.speechSynthesis.cancel();
-              }
-              
-              newStates.forEach(state => {
-                  const id = parseInt(state.split('|')[0], 10);
-                  const p = serving.find(x => x.id === id);
-                  if (p && 'speechSynthesis' in window) {
-                      setIsSpeaking(true);
-                      const safeNumber = p.queueNumber.replace(/-/g, ' ');
-                      const msg = new SpeechSynthesisUtterance(`Calling patient number ${safeNumber}, to ${p.door}`);
-                      msg.rate = 0.85;
-                      msg.pitch = 1.1;
-                      msg.onend = () => setIsSpeaking(false);
-                      window.speechSynthesis.speak(msg);
-                  }
-              });
-           }
-           prevStatesRef.current = currentStates;
-           setNowServing(serving);
-           setUpcoming(data.filter(p => p.status === 'Pending').slice(0, 8));
-        }
-      } catch (error) {
-        console.error('Failed to fetch queue');
-      }
+      } catch (e) {}
     };
 
-    fetchQueue();
-    const interval = setInterval(fetchQueue, 3000);
-    return () => clearInterval(interval);
+    fetchInitial();
+
+    // SSE Connection
+    const eventSource = new EventSource('/api/events');
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        processData(data);
+      } catch (e) {}
+    };
+
+    return () => eventSource.close();
   }, []);
 
   return (
@@ -178,7 +203,7 @@ export default function DisplayPage() {
                  {videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be') ? (
                     <iframe 
                        className="w-full h-full absolute inset-0"
-                       src={`${videoUrl}&rel=0&modestbranding=1&autohide=1&showinfo=0&controls=0`}
+                       src={getYouTubeEmbedUrl(videoUrl)}
                        title="Hospital Infotainment"
                        frameBorder="0"
                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

@@ -125,8 +125,24 @@ function StaffContent() {
         if (Array.isArray(videoData)) setLocalVideos(videoData);
       };
       fetchSettings();
-      const interval = setInterval(fetchQueue, 3000);
-      return () => clearInterval(interval);
+      
+      const eventSource = new EventSource('/api/events');
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (Array.isArray(data)) {
+            setQueue(data);
+            const actives = data.filter(p => 
+              p.status === 'Calling' && 
+              p.door === selectedDoor && 
+              isRelevant(p.serviceType, selectedDoor)
+            );
+            setCallingPatients(actives);
+          }
+        } catch (err) {}
+      };
+
+      return () => eventSource.close();
     }
   }, [isConfigured, selectedDoor]);
 

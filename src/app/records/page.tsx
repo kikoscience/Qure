@@ -43,9 +43,22 @@ export default function RecordsPage() {
   };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 5000); // Polling every 5s
-    return () => clearInterval(interval);
+    // SSE Connection
+    const eventSource = new EventSource('/api/events');
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data && Array.isArray(data)) {
+          setRecords(data);
+        }
+      } catch (err) {
+        console.error('SSE Error:', err);
+      }
+    };
+
+    fetchData(); // Initial load
+    return () => eventSource.close();
   }, [authUser]);
 
   const handleMarkPrinted = (id) => {
