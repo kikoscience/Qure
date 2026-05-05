@@ -47,6 +47,6 @@ export async function GET(request) {
     return NextResponse.json(filteredData);
   } catch (error) {
     console.error('EMR API Error:', error);
-    return NextResponse.json({ error: 'Failed to fetch EMR data' }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
