@@ -145,18 +145,18 @@ export default function TriagePage() {
       {lastQueued && (
         <div id="print-ticket" className="hidden print:block text-center font-sans text-black">
           {/* Patient Stub */}
-          <div className="mb-2 pb-2 border-b-4 border-black">
-            <h2 className="text-xl font-black uppercase">CDH HOSPITAL</h2>
+          <div className="mb-4 pb-4 border-b-4 border-black">
+            <h2 className="text-lg font-black uppercase">CDH HOSPITAL</h2>
             <div className="my-1 border-y-2 border-black py-1">
-              <p className="text-lg font-black uppercase leading-tight">PATIENT TICKET</p>
+              <p className="text-sm font-black uppercase leading-tight">PATIENT TICKET</p>
             </div>
             
             <div className="my-2">
-              <h3 className="text-7xl font-black leading-none">{lastQueued.queueNumber}</h3>
-              <p className="text-xl font-black uppercase">{lastQueued.classification}</p>
+              <h3 className="text-5xl font-black leading-none">{lastQueued.queueNumber}</h3>
+              <p className="text-lg font-black uppercase">{lastQueued.classification}</p>
             </div>
 
-            <div className="text-left text-lg font-black leading-tight mt-2">
+            <div className="text-sm font-black leading-tight mt-2 uppercase">
               <p>NAME: {maskName(lastQueued.patientName)}</p>
               <p>DEPT: {lastQueued.serviceType}</p>
             </div>
@@ -164,15 +164,18 @@ export default function TriagePage() {
           </div>
 
           {/* Records Attachment */}
-          <div className="mt-2 text-left">
+          <div className="mt-4">
             <h2 className="text-lg font-black uppercase leading-tight">RECORDS COPY</h2>
-            <p className="text-4xl font-black">{lastQueued.queueNumber}</p>
-            <div className="text-[12px] font-black leading-tight">
+            <div className="my-2">
+              <h3 className="text-5xl font-black leading-none">{lastQueued.queueNumber}</h3>
+              <p className="text-lg font-black uppercase">{lastQueued.classification}</p>
+            </div>
+            <div className="text-sm font-black leading-tight mt-2 uppercase">
               <p>NAME: {maskName(lastQueued.patientName)}</p>
               <p>ID: {lastQueued.hpercode}</p>
               <p>DEPT: {lastQueued.serviceType}</p>
-              <p>{new Date().toLocaleString()}</p>
             </div>
+            <p className="text-[10px] mt-2 font-bold">{new Date().toLocaleString()}</p>
           </div>
         </div>
       )}
