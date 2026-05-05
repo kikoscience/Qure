@@ -47,6 +47,13 @@ CREATE TABLE Queues (
     createdAt DATETIME DEFAULT GETDATE(),
     updatedAt DATETIME DEFAULT GETDATE()
 );
+
+CREATE TABLE Settings (
+    id INT PRIMARY KEY IDENTITY(1,1),
+    key_name NVARCHAR(255) UNIQUE,
+    value_text NVARCHAR(MAX),
+    updatedAt DATETIME DEFAULT GETDATE()
+);
 GO
 ```
 

@@ -17,6 +17,7 @@ export default function DisplayPage() {
   const [currentVideoIdx, setCurrentVideoIdx] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [audioEnabled, setAudioEnabled] = useState(false);
   const prevStatesRef = useRef([]);
 
   const staticDoors = ['Door 1', 'Door 2', 'Door 3', 'Door 4', 'Door 5'];
@@ -37,10 +38,12 @@ export default function DisplayPage() {
       videoId = url.split('youtu.be/')[1]?.split('?')[0];
     } else if (url.includes('embed/')) {
       videoId = url.split('embed/')[1]?.split('?')[0];
+    } else if (url.includes('shorts/')) {
+      videoId = url.split('shorts/')[1]?.split('?')[0];
     }
     
     if (videoId) {
-      return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&showinfo=0&rel=0&modestbranding=1&iv_load_policy=3`;
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0&loop=1&playlist=${videoId}&controls=0&showinfo=0&rel=0&modestbranding=1&iv_load_policy=3`;
     }
     return url;
   };
@@ -125,8 +128,41 @@ export default function DisplayPage() {
     return () => eventSource.close();
   }, []);
 
+  const enableAudio = () => {
+    setAudioEnabled(true);
+    if ('speechSynthesis' in window) {
+      const msg = new SpeechSynthesisUtterance('Audio enabled');
+      msg.volume = 0; // Silent test
+      window.speechSynthesis.speak(msg);
+    }
+  };
+
   return (
     <div className="h-screen bg-[#020204] text-white font-sans overflow-hidden flex flex-col selection:bg-indigo-500/30">
+      <AnimatePresence>
+        {!audioEnabled && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-3xl flex flex-col items-center justify-center p-12 text-center"
+          >
+            <div className="w-32 h-32 bg-indigo-600 rounded-[3rem] flex items-center justify-center text-white mb-10 shadow-[0_0_50px_rgba(79,70,229,0.5)] animate-bounce">
+              <Volume2 size={64} />
+            </div>
+            <h2 className="text-5xl font-black italic tracking-tighter uppercase mb-6">Voice AI Protected</h2>
+            <p className="text-zinc-500 max-w-md mx-auto mb-12 font-medium leading-relaxed">
+              Browser security requires a manual click to enable audio announcements. Please tap the button below to synchronize the command center voice.
+            </p>
+            <button 
+              onClick={enableAudio}
+              className="px-16 py-6 bg-white text-black rounded-full font-black uppercase tracking-[0.3em] text-sm hover:bg-indigo-500 hover:text-white transition-all shadow-2xl active:scale-95"
+            >
+              Activate Audio Engine
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Dynamic Background Noise/Texture */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
       

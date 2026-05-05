@@ -11,6 +11,7 @@ export default function DoorDisplayPage({ params }: { params: Promise<{ door: st
   const [upcoming, setUpcoming] = useState([]);
   const prevIdsRef = useRef([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [audioEnabled, setAudioEnabled] = useState(false);
 
   const maskName = (name: string) => {
     if (!name) return '';
@@ -92,8 +93,41 @@ export default function DoorDisplayPage({ params }: { params: Promise<{ door: st
     );
   };
 
+  const enableAudio = () => {
+    setAudioEnabled(true);
+    if ('speechSynthesis' in window) {
+      const msg = new SpeechSynthesisUtterance('Audio enabled');
+      msg.volume = 0; // Silent test
+      window.speechSynthesis.speak(msg);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white font-sans overflow-hidden flex flex-col">
+      <AnimatePresence>
+        {!audioEnabled && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-3xl flex flex-col items-center justify-center p-12 text-center"
+          >
+            <div className="w-24 h-24 bg-indigo-600 rounded-[2.5rem] flex items-center justify-center text-white mb-8 shadow-[0_0_40px_rgba(79,70,229,0.4)] animate-bounce">
+              <Volume2 size={48} />
+            </div>
+            <h2 className="text-4xl font-black italic tracking-tighter uppercase mb-4">Audio Required</h2>
+            <p className="text-zinc-500 max-w-sm mx-auto mb-10 font-medium leading-relaxed text-sm">
+              Please click the button to enable patient calling announcements for this station.
+            </p>
+            <button 
+              onClick={enableAudio}
+              className="px-12 py-5 bg-white text-black rounded-full font-black uppercase tracking-[0.2em] text-xs hover:bg-indigo-500 hover:text-white transition-all shadow-xl active:scale-95"
+            >
+              Start Voice Engine
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Top Banner */}
       <div className="bg-indigo-600 p-6 flex justify-between items-center shadow-2xl relative z-20">
          <div className="flex items-center gap-6">
