@@ -54,11 +54,7 @@ export default function TriagePage() {
     setLoading(true);
     setError(null);
     try {
-      // Format YYYY-MM-DD to MM-DD-YYYY for the API
-      const [y, m, d] = selectedDate.split('-');
-      const apiDate = `${m}-${d}-${y}`;
-
-      const res = await fetch(`/api/emr?date=${apiDate}`);
+      const res = await fetch(`/api/emr?date=${selectedDate}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setEmrList(data);

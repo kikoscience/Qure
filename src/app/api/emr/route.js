@@ -11,7 +11,7 @@ export async function GET(request) {
     // Use date from param if provided, otherwise use today's date
     const dateSql = dateParam 
       ? `'${dateParam}'` 
-      : "FORMAT(GETDATE(), 'MM-dd-yyyy')";
+      : "FORMAT(GETDATE(), 'yyyy-MM-dd')";
 
     // Fetch currently queued patients for today from the LOCAL Queue DB
     const queuedResult = await queuePool.request()
