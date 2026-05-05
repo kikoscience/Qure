@@ -9,14 +9,17 @@ services:
     restart: always
     environment:
       - NODE_ENV=production
-      - QUEUE_DB_SERVER=${QUEUE_DB_SERVER}
-      - QUEUE_DB_NAME=${QUEUE_DB_NAME}
-      - QUEUE_DB_USER=${QUEUE_DB_USER}
-      - QUEUE_DB_PASSWORD=${QUEUE_DB_PASSWORD}
-      - HOSPITAL_DB_SERVER=${HOSPITAL_DB_SERVER}
-      - HOSPITAL_DB_NAME=${HOSPITAL_DB_NAME}
-      - HOSPITAL_DB_USER=${HOSPITAL_DB_USER}
-      - HOSPITAL_DB_PASSWORD=${HOSPITAL_DB_PASSWORD}
+      # --- QUEUE DATABASE ---
+      - QUEUE_DB_SERVER=${QUEUE_DB_SERVER:-192.168.1.3}
+      - QUEUE_DB_NAME=${QUEUE_DB_NAME:-HospitalQueueDB}
+      - QUEUE_DB_USER=${QUEUE_DB_USER:-hqdb}
+      - QUEUE_DB_PASSWORD=${QUEUE_DB_PASSWORD:-VibeQ@123_SecurePassword}
+      
+      # --- HOSPITAL DATABASE ---
+      - HOSPITAL_DB_SERVER=${HOSPITAL_DB_SERVER:-192.168.1.3}
+      - HOSPITAL_DB_NAME=${HOSPITAL_DB_NAME:-medilogs}
+      - HOSPITAL_DB_USER=${HOSPITAL_DB_USER:-sa}
+      - HOSPITAL_DB_PASSWORD=${HOSPITAL_DB_PASSWORD:-rfx14w}
     logging:
       driver: "json-file"
       options:
