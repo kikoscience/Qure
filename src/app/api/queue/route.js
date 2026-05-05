@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const pool = await getQueuePool();
     const result = await pool.request()
-      .query('SELECT * FROM Queues WHERE status IN (\'Pending\', \'Calling\', \'Skipped\') ORDER BY createdAt ASC');
+      .query('SELECT * FROM Queues WHERE status IN (\'Pending\', \'Calling\', \'Skipped\') ORDER BY updatedAt ASC');
 
     return NextResponse.json(result.recordset);
   } catch (error) {
@@ -32,7 +32,7 @@ export async function POST(request) {
         SELECT COUNT(*) as count FROM Queues 
         WHERE serviceType = @serviceType 
         AND (CASE WHEN classification = 'Regular' THEN 0 ELSE 1 END) = @isPriority
-        AND CAST(createdAt AS DATE) = CAST(GETDATE() AS DATE)
+        AND CAST(updatedAt AS DATE) = CAST(GETDATE() AS DATE)
       `);
 
     const count = countResult.recordset[0].count + 1;

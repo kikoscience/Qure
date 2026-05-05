@@ -19,7 +19,7 @@ export async function GET(request) {
         SELECT emrId 
         FROM Queues 
         WHERE status IN ('Pending', 'Calling') 
-        AND CAST(createdAt AS DATE) = CAST(GETDATE() AS DATE)
+        AND CAST(updatedAt AS DATE) = CAST(GETDATE() AS DATE)
       `);
     const queuedIds = new Set(queuedResult.recordset.map(r => r.emrId));
 

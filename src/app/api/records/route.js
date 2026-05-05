@@ -8,8 +8,8 @@ export async function GET() {
     const result = await pool.request()
       .query(`
         SELECT * FROM HospitalQueueDB.dbo.Queues 
-        WHERE CAST(createdAt AS DATE) = CAST(GETDATE() AS DATE)
-        ORDER BY createdAt ASC
+        WHERE CAST(updatedAt AS DATE) = CAST(GETDATE() AS DATE)
+        ORDER BY updatedAt ASC
       `);
     
     return NextResponse.json({
