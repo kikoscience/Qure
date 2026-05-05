@@ -5,47 +5,57 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const dateParam = searchParams.get('date');
-    const hospitalPool = await getHospitalPool();
-    const queuePool = await getQueuePool();
     
-    // Use date from param if provided, otherwise use today's date
+    // 1. Get Connections
+    let hospitalPool, queuePool;
+    try {
+      hospitalPool = await getHospitalPool();
+      queuePool = await getQueuePool();
+    } catch (connErr) {
+      return NextResponse.json({ error: `Connection Phase Failed: ${connErr.message}` }, { status: 500 });
+    }
+    
     const dateSql = dateParam 
       ? `'${dateParam}'` 
       : "FORMAT(GETDATE(), 'yyyy-MM-dd')";
 
-    // Fetch currently queued patients for today from the LOCAL Queue DB
-    const queuedResult = await queuePool.request()
-      .query(`
-        SELECT emrId 
-        FROM Queues 
-        WHERE CAST(updatedAt AS DATE) = CAST(GETDATE() AS DATE)
-      `);
-    const queuedIds = new Set(queuedResult.recordset.map(r => r.emrId));
+    // 2. Fetch from Queue DB
+    let queuedIds = new Set();
+    try {
+      const queuedResult = await queuePool.request()
+        .query(`
+          SELECT emrId 
+          FROM HospitalQueueDB.dbo.Queues 
+          WHERE CAST(updatedAt AS DATE) = CAST(GETDATE() AS DATE)
+        `);
+      queuedIds = new Set(queuedResult.recordset.map(r => r.emrId));
+    } catch (queueErr) {
+      return NextResponse.json({ error: `Queue DB Query Failed: ${queueErr.message}` }, { status: 500 });
+    }
 
-    // Fetch EMR list from the HOSPITAL DB
-    const result = await hospitalPool.request()
-      .query(`
-        SELECT 
-          TRIM(enccode) as id,
-          TRIM(hpercode) as patientId,
-          ISNULL(patfirst, '') + ' ' + ISNULL(patlast, '') as patientName,
-          tsdesc as serviceType,
-          opddate as appointmentTime
-        FROM medilogs.opd.active_list(${dateSql}, 'ALL')
-        WHERE tsdesc NOT LIKE '%DIALYSIS%'
-        ORDER BY opddate ASC
-      `);
-    
-    console.log(`EMR Fetch: Found ${result.recordset.length} total patients in EMR for ${dateSql}`);
+    // 3. Fetch from Hospital DB
+    try {
+      const result = await hospitalPool.request()
+        .query(`
+          SELECT 
+            TRIM(enccode) as id,
+            TRIM(hpercode) as patientId,
+            ISNULL(patfirst, '') + ' ' + ISNULL(patlast, '') as patientName,
+            tsdesc as serviceType,
+            opddate as appointmentTime
+          FROM medilogs.opd.active_list(${dateSql}, 'ALL')
+          WHERE tsdesc NOT LIKE '%DIALYSIS%'
+          ORDER BY opddate ASC
+        `);
+      
+      const filteredData = result.recordset.filter(p => !queuedIds.has(p.id));
+      return NextResponse.json(filteredData);
+    } catch (hospErr) {
+      return NextResponse.json({ error: `Hospital DB Query Failed: ${hospErr.message}` }, { status: 500 });
+    }
 
-    // Filter out patients who are already in the queue
-    const filteredData = result.recordset.filter(p => !queuedIds.has(p.id));
-    
-    console.log(`EMR Fetch: ${filteredData.length} patients remaining after filtering already queued`);
-
-    return NextResponse.json(filteredData);
   } catch (error) {
-    console.error('EMR API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('EMR API Fatal Error:', error);
+    return NextResponse.json({ error: `Fatal API Crash: ${error.message}` }, { status: 500 });
   }
 }
