@@ -3,10 +3,10 @@
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Search, UserPlus, CheckCircle, Hospital, ArrowRight, 
-  RefreshCcw, LayoutGrid, ListFilter, Clock, Printer, 
-  X, LogOut, ShieldCheck, Check 
+import {
+  Search, UserPlus, CheckCircle, Hospital, ArrowRight,
+  RefreshCcw, LayoutGrid, ListFilter, Clock, Printer,
+  X, LogOut, ShieldCheck, Check
 } from 'lucide-react';
 
 export default function TriagePage() {
@@ -39,11 +39,11 @@ export default function TriagePage() {
       } else {
         window.location.href = '/login';
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const classifications = [
-    'Regular', 'Senior Citizen', 'Pregnant Women', 'PWD', 
+    'Regular', 'Senior Citizen', 'Pregnant Women', 'PWD',
     'Breast Feeding Moms', 'Infants', 'Immno Compromised Patients', 'CDH Employees'
   ];
 
@@ -54,8 +54,8 @@ export default function TriagePage() {
       // Format YYYY-MM-DD to MM-DD-YYYY for the API
       const [y, m, d] = selectedDate.split('-');
       const apiDate = `${m}-${d}-${y}`;
-      
-      const res = await fetch(`/api/emr?date=${apiDate}`); 
+
+      const res = await fetch(`/api/emr?date=${apiDate}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setEmrList(data);
@@ -86,8 +86,8 @@ export default function TriagePage() {
       const res = await fetch('/api/queue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          patientName: selectedPatient.patientName, 
+        body: JSON.stringify({
+          patientName: selectedPatient.patientName,
           serviceType: selectedPatient.serviceType,
           classification: classification,
           emrId: selectedPatient.id,
@@ -99,7 +99,7 @@ export default function TriagePage() {
       setIsModalOpen(false);
       setSelectedPatient(null);
       await fetchEmrList();
-      
+
       // Auto print trigger
       setTimeout(() => window.print(), 500);
     } catch (error) {
@@ -109,7 +109,7 @@ export default function TriagePage() {
     }
   };
 
-  const filteredList = Array.isArray(emrList) ? emrList.filter(p => 
+  const filteredList = Array.isArray(emrList) ? emrList.filter(p =>
     p.patientName?.toLowerCase().includes(search.toLowerCase()) ||
     p.serviceType?.toLowerCase().includes(search.toLowerCase()) ||
     p.patientId?.toLowerCase().includes(search.toLowerCase())
@@ -118,11 +118,11 @@ export default function TriagePage() {
   return (
     <div className="min-h-screen bg-[#020205] text-white font-sans selection:bg-indigo-500/30 overflow-hidden flex flex-col">
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
-      
+
       {/* Dynamic Background Accents */}
       <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-indigo-600/5 rounded-full blur-[150px] pointer-events-none"></div>
       <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-emerald-600/5 rounded-full blur-[150px] pointer-events-none"></div>
-      
+
       {/* Print Overlay (Only visible when printing) */}
       <style jsx global>{`
         @media print {
@@ -182,40 +182,40 @@ export default function TriagePage() {
               </div>
             </div>
           </Link>
-          
-          <div className="flex items-center gap-8">
-             <div className="flex flex-col items-end">
-               <label className="text-[9px] font-black uppercase text-zinc-600 tracking-[0.4em] mb-2">Clinic Operations Date</label>
-               <input 
-                 type="date" 
-                 value={selectedDate}
-                 onChange={(e) => setSelectedDate(e.target.value)}
-                 className="bg-white/5 border border-white/10 rounded-xl px-5 py-2 text-xs font-bold text-white outline-none focus:border-indigo-500/50 transition-all cursor-pointer hover:bg-white/10"
-               />
-             </div>
-             
-             <div className="h-10 w-px bg-white/5"></div>
 
-             <div className="flex items-center gap-6">
-                <div className="text-right hidden xl:block">
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-0.5">Triage Officer</p>
-                  <p className="text-xs font-black text-white uppercase tracking-tighter">{authUser?.actual_name || authUser?.user_name}</p>
-                </div>
-                <button 
-                  onClick={handleLogout}
-                  className="p-3.5 bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/50 rounded-2xl text-zinc-500 hover:text-red-500 transition-all duration-500 group"
-                  title="Secure Logout"
-                >
-                  <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
-                </button>
-                <button 
-                  onClick={fetchEmrList}
-                  disabled={loading}
-                  className="p-3.5 bg-indigo-600 hover:bg-indigo-500 rounded-2xl text-white transition-all duration-500 shadow-xl shadow-indigo-600/20 active:scale-95"
-                >
-                  <RefreshCcw size={22} className={loading ? 'animate-spin' : ''} />
-                </button>
-             </div>
+          <div className="flex items-center gap-8">
+            <div className="flex flex-col items-end">
+              <label className="text-[9px] font-black uppercase text-zinc-600 tracking-[0.4em] mb-2">Clinic Operations Date</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-white/5 border border-white/10 rounded-xl px-5 py-2 text-xs font-bold text-white outline-none focus:border-indigo-500/50 transition-all cursor-pointer hover:bg-white/10"
+              />
+            </div>
+
+            <div className="h-10 w-px bg-white/5"></div>
+
+            <div className="flex items-center gap-6">
+              <div className="text-right hidden xl:block">
+                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-0.5">Triage Officer</p>
+                <p className="text-xs font-black text-white uppercase tracking-tighter">{authUser?.actual_name || authUser?.user_name}</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="p-3.5 bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/50 rounded-2xl text-zinc-500 hover:text-red-500 transition-all duration-500 group"
+                title="Secure Logout"
+              >
+                <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
+              </button>
+              <button
+                onClick={fetchEmrList}
+                disabled={loading}
+                className="p-3.5 bg-indigo-600 hover:bg-indigo-500 rounded-2xl text-white transition-all duration-500 shadow-xl shadow-indigo-600/20 active:scale-95"
+              >
+                <RefreshCcw size={22} className={loading ? 'animate-spin' : ''} />
+              </button>
+            </div>
           </div>
         </header>
       </div>
@@ -224,22 +224,22 @@ export default function TriagePage() {
         <div className="flex-1 flex flex-col gap-8">
           <section className="flex flex-col h-full">
             <div className="flex items-center justify-between mb-8">
-               <div className="flex flex-col">
-                  <h2 className="text-[11px] font-black text-indigo-500 uppercase tracking-[0.4em] mb-1 flex items-center gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
-                    Clinical Registration
-                  </h2>
-                  <p className="text-3xl font-black text-white italic tracking-tighter">PATIENT SELECTION</p>
-               </div>
-               <div className="px-5 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                 {filteredList.length} <span className="text-zinc-700 mx-1">/</span> Records Found
-               </div>
+              <div className="flex flex-col">
+                <h2 className="text-[11px] font-black text-indigo-500 uppercase tracking-[0.4em] mb-1 flex items-center gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
+                  Clinical Registration
+                </h2>
+                <p className="text-3xl font-black text-white italic tracking-tighter">PATIENT SELECTION</p>
+              </div>
+              <div className="px-5 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                {filteredList.length} <span className="text-zinc-700 mx-1">/</span> Records Found
+              </div>
             </div>
-            
+
             <div className="relative group mb-10">
               <div className="absolute inset-0 bg-indigo-600/5 rounded-3xl blur-xl opacity-0 group-focus-within:opacity-100 transition duration-500"></div>
               <Search className="absolute left-8 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-indigo-500 transition-colors" size={28} />
-              <input 
+              <input
                 type="text"
                 placeholder="Search patient name, hospital ID, or clinic department..."
                 value={search}
@@ -251,7 +251,7 @@ export default function TriagePage() {
             <div className="flex-1 overflow-y-auto pr-4 space-y-4 scrollbar-hide">
               <AnimatePresence mode="popLayout">
                 {!error && filteredList.map((p, idx) => (
-                  <motion.div 
+                  <motion.div
                     key={p.id}
                     layout
                     initial={{ opacity: 0, x: -20 }}
@@ -261,7 +261,7 @@ export default function TriagePage() {
                     className="bg-white/[0.03] p-8 rounded-[2.5rem] border border-white/5 flex items-center justify-between hover:bg-white/[0.06] hover:border-indigo-500/30 group transition-all duration-500 relative overflow-hidden"
                   >
                     <div className="absolute top-0 right-0 p-8 opacity-0 group-hover:opacity-[0.03] transition-opacity">
-                       <UserPlus size={100} />
+                      <UserPlus size={100} />
                     </div>
 
                     <div className="flex items-center gap-8 relative z-10">
@@ -284,8 +284,8 @@ export default function TriagePage() {
                         </div>
                       </div>
                     </div>
-                    
-                    <button 
+
+                    <button
                       onClick={() => {
                         setSelectedPatient(p);
                         setIsModalOpen(true);
@@ -303,17 +303,17 @@ export default function TriagePage() {
 
         {/* Status Display */}
         <div className="w-96 flex flex-col gap-8">
-           <div className="flex flex-col mb-2">
-              <h3 className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.4em] mb-1 flex items-center gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                Command Feedback
-              </h3>
-              <p className="text-2xl font-black text-white italic tracking-tighter uppercase">Last Processed</p>
-           </div>
+          <div className="flex flex-col mb-2">
+            <h3 className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.4em] mb-1 flex items-center gap-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+              Command Feedback
+            </h3>
+            <p className="text-2xl font-black text-white italic tracking-tighter uppercase">Last Processed</p>
+          </div>
 
-           <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait">
             {lastQueued ? (
-              <motion.div 
+              <motion.div
                 key={lastQueued.id}
                 initial={{ opacity: 0, scale: 0.9, y: 30 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -321,15 +321,15 @@ export default function TriagePage() {
                 className="bg-white rounded-[3rem] p-12 text-black shadow-2xl relative overflow-hidden group"
               >
                 <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:scale-110 transition-transform duration-1000">
-                   <CheckCircle size={180} />
+                  <CheckCircle size={180} />
                 </div>
 
                 <div className="relative z-10 text-center">
                   <div className="inline-flex p-4 bg-emerald-500 text-white rounded-[1.5rem] mb-10 shadow-xl shadow-emerald-500/30">
-                     <CheckCircle size={32} />
+                    <CheckCircle size={32} />
                   </div>
                   <p className="text-zinc-400 font-black uppercase tracking-[0.4em] text-[10px] mb-6">Patient Successfully Assigned</p>
-                  
+
                   <div className="mb-8">
                     <h3 className="text-7xl font-black tracking-tighter italic leading-none mb-4">
                       {lastQueued.queueNumber}
@@ -338,8 +338,8 @@ export default function TriagePage() {
                   </div>
 
                   <p className="text-xl font-black text-zinc-900 uppercase tracking-tight mb-10">{lastQueued.patientName}</p>
-                  
-                  <button 
+
+                  <button
                     onClick={() => window.print()}
                     className="w-full py-5 bg-black text-white rounded-2xl flex items-center justify-center gap-4 font-black text-xs uppercase tracking-widest hover:bg-indigo-600 transition-all duration-300 active:scale-95"
                   >
@@ -348,14 +348,14 @@ export default function TriagePage() {
                 </div>
               </motion.div>
             ) : (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                 className="flex-1 border-2 border-dashed border-white/5 rounded-[3rem] flex flex-col items-center justify-center text-center p-12 opacity-30"
               >
-                 <div className="w-20 h-20 bg-white/5 rounded-[2rem] flex items-center justify-center mb-8">
-                    <LayoutGrid size={32} />
-                 </div>
-                 <p className="text-xs font-black uppercase tracking-[0.3em] leading-relaxed">System Ready<br/>Awaiting Transaction</p>
+                <div className="w-20 h-20 bg-white/5 rounded-[2rem] flex items-center justify-center mb-8">
+                  <LayoutGrid size={32} />
+                </div>
+                <p className="text-xs font-black uppercase tracking-[0.3em] leading-relaxed">System Ready<br />Awaiting Transaction</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -366,12 +366,12 @@ export default function TriagePage() {
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsModalOpen(false)}
               className="absolute inset-0 bg-black/90 backdrop-blur-xl"
             />
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -379,8 +379,8 @@ export default function TriagePage() {
             >
               <div className="flex justify-between items-start mb-12">
                 <div>
-                   <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase mb-2">Assign Classification</h2>
-                   <p className="text-[11px] font-black text-indigo-500 uppercase tracking-[0.4em]">{selectedPatient?.patientName}</p>
+                  <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase mb-2">Assign Classification</h2>
+                  <p className="text-[11px] font-black text-indigo-500 uppercase tracking-[0.4em]">{selectedPatient?.patientName}</p>
                 </div>
                 <button onClick={() => setIsModalOpen(false)} className="p-4 hover:bg-white/5 rounded-2xl transition-colors text-zinc-500">
                   <X size={32} />
@@ -395,11 +395,10 @@ export default function TriagePage() {
                       key={c}
                       disabled={loading}
                       onClick={() => addToQueue(c)}
-                      className={`group relative p-8 rounded-[2rem] text-left border-2 transition-all duration-500 overflow-hidden active:scale-95 ${
-                        isRegular 
-                        ? 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20' 
-                        : 'bg-indigo-600/10 border-indigo-600/20 hover:bg-indigo-600 hover:border-indigo-600'
-                      }`}
+                      className={`group relative p-8 rounded-[2rem] text-left border-2 transition-all duration-500 overflow-hidden active:scale-95 ${isRegular
+                          ? 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'
+                          : 'bg-indigo-600/10 border-indigo-600/20 hover:bg-indigo-600 hover:border-indigo-600'
+                        }`}
                     >
                       <div className={`text-[10px] font-black uppercase tracking-[0.3em] mb-2 ${isRegular ? 'text-zinc-500' : 'text-indigo-400 group-hover:text-indigo-200'}`}>
                         {isRegular ? 'Standard Queue' : 'Priority Access'}
@@ -407,11 +406,11 @@ export default function TriagePage() {
                       <div className={`text-xl font-black italic tracking-tighter uppercase ${isRegular ? 'text-white' : 'text-indigo-500 group-hover:text-white'}`}>
                         {c}
                       </div>
-                      
+
                       {!isRegular && (
-                         <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-30 transition-opacity">
-                            <ShieldCheck size={40} className="text-white" />
-                         </div>
+                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-30 transition-opacity">
+                          <ShieldCheck size={40} className="text-white" />
+                        </div>
                       )}
                     </button>
                   );
@@ -419,15 +418,15 @@ export default function TriagePage() {
               </div>
 
               <div className="mt-12 pt-8 border-t border-white/5 text-center">
-                 <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest italic">Note: Priority assignments automatically receive a 'P-' designation.</p>
+                <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest italic">Note: Priority assignments automatically receive a 'P-' designation.</p>
               </div>
 
               {loading && (
                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-md">
-                   <div className="flex flex-col items-center gap-6">
-                      <RefreshCcw size={60} className="text-indigo-500 animate-spin" />
-                      <p className="text-xs font-black uppercase tracking-[0.5em] text-white animate-pulse">Processing_Queue_Entry...</p>
-                   </div>
+                  <div className="flex flex-col items-center gap-6">
+                    <RefreshCcw size={60} className="text-indigo-500 animate-spin" />
+                    <p className="text-xs font-black uppercase tracking-[0.5em] text-white animate-pulse">Processing_Queue_Entry...</p>
+                  </div>
                 </div>
               )}
             </motion.div>
