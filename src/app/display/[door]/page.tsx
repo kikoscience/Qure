@@ -4,7 +4,7 @@ import { useEffect, useState, use, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Volume2, Hospital, DoorOpen, BellRing, Clock } from 'lucide-react';
 
-export default function DoorDisplayPage({ params }) {
+export default function DoorDisplayPage({ params }: { params: Promise<{ door: string }> }) {
   const doorParam = use(params).door;
   const doorId = doorParam.replace('door', 'Door '); // door1 -> Door 1
   const [servingList, setServingList] = useState([]);
