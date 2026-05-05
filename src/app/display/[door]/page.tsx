@@ -12,7 +12,7 @@ export default function DoorDisplayPage({ params }: { params: Promise<{ door: st
   const prevIdsRef = useRef([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
-  const maskName = (name) => {
+  const maskName = (name: string) => {
     if (!name) return '';
     return name.split(' ').map(word => {
       if (word.length <= 1) return word;
@@ -24,17 +24,17 @@ export default function DoorDisplayPage({ params }: { params: Promise<{ door: st
     const fetchQueue = async () => {
       try {
         const res = await fetch('/api/queue');
-        const data = await res.json();
+        const data: any[] = await res.json();
         
         // Find all patients for this specific door
-        const activeList = data.filter(p => 
+        const activeList = data.filter((p: any) => 
           p.status === 'Calling' && 
           p.door && 
           p.door.trim().toLowerCase() === doorId.trim().toLowerCase()
         );
         
         // Notification Logic
-        const currentStates = activeList.map(p => `${p.id}|${p.updatedAt || ''}`);
+        const currentStates = activeList.map((p: any) => `${p.id}|${p.updatedAt || ''}`);
         const prevStates = prevIdsRef.current;
         const newStates = currentStates.filter(state => !prevStates.includes(state));
         
@@ -44,7 +44,7 @@ export default function DoorDisplayPage({ params }: { params: Promise<{ door: st
            }
            newStates.forEach(state => {
                const id = state.split('|')[0];
-               const p = activeList.find(x => String(x.id) === id);
+               const p = activeList.find((x: any) => String(x.id) === id);
                if (p && 'speechSynthesis' in window) {
                    setIsSpeaking(true);
                    const safeNumber = p.queueNumber.replace(/-/g, ' ');
@@ -60,7 +60,7 @@ export default function DoorDisplayPage({ params }: { params: Promise<{ door: st
 
         setServingList(activeList);
         
-        setUpcoming(data.filter(p => p.status === 'Pending').slice(0, 4));
+        setUpcoming(data.filter((p: any) => p.status === 'Pending').slice(0, 4));
       } catch (error) {
         console.error('Failed to fetch queue');
       }
@@ -71,7 +71,7 @@ export default function DoorDisplayPage({ params }: { params: Promise<{ door: st
     return () => clearInterval(interval);
   }, [doorId]);
 
-  const ClassificationRibbon = ({ classification }) => {
+  const ClassificationRibbon = ({ classification }: { classification: string }) => {
     const configs = {
       'Senior Citizen': 'bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.5)]',
       'PWD': 'bg-rose-500 text-white shadow-[0_0_15px_rgba(244,63,94,0.5)]',
@@ -120,7 +120,7 @@ export default function DoorDisplayPage({ params }: { params: Promise<{ door: st
          <AnimatePresence mode="popLayout">
             {servingList.length > 0 ? (
                <div className={`grid gap-8 h-full ${servingList.length === 1 ? 'grid-cols-1' : servingList.length <= 4 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                  {servingList.map((serving) => (
+                  {servingList.map((serving: any) => (
                     <motion.div 
                       key={serving.id}
                       layout
@@ -176,7 +176,7 @@ export default function DoorDisplayPage({ params }: { params: Promise<{ door: st
                   <span className="text-sm font-black text-zinc-600 uppercase tracking-[0.2em]">Live Queue Feed</span>
                </div>
                <div className="flex gap-10">
-                  {upcoming.map(p => (
+                  {upcoming.map((p: any) => (
                      <div key={p.id} className="flex flex-col border-l border-white/10 pl-6">
                         <span className="text-3xl font-black text-indigo-500 leading-none tracking-tighter">{p.queueNumber}</span>
                         <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter truncate w-32 mt-1">{maskName(p.patientName)}</span>
