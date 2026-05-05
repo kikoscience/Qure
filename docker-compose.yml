@@ -19,7 +19,7 @@ services:
       - HOSPITAL_DB_SERVER=${HOSPITAL_DB_SERVER:-192.168.1.3}
       - HOSPITAL_DB_NAME=${HOSPITAL_DB_NAME:-medilogs}
       - HOSPITAL_DB_USER=${HOSPITAL_DB_USER:-sa}
-      - HOSPITAL_DB_PASSWORD=${HOSPITAL_DB_PASSWORD:-rfx14w}
+      - HOSPITAL_DB_PASSWORD=${HOSPITAL_DB_PASSWORD:-VibeQ@123_SecurePassword}
     logging:
       driver: "json-file"
       options:

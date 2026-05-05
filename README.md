@@ -1,85 +1,74 @@
 # Qure Hospital Command Center V3.4
 
-A high-fidelity, real-time medical logistics and patient queue management system designed for modern hospital environments. Built with Next.js, Framer Motion, and Microsoft SQL Server.
+A high-fidelity, real-time medical logistics and patient queue management system.
 
 ---
 
 ## 🚀 Quick Start (Docker Deployment)
 
-The fastest way to deploy the entire stack (App + MSSQL Database) on your Proxmox/Debian server.
+### 1. Configure the Environment
+The app uses a `.env` file for all database connections. Create or edit the `.env` file in the root:
 
-### Prerequisites
-- Docker & Docker Compose installed.
-- Minimum 4GB RAM (SQL Server requires 2GB+).
+```ini
+# HOSPITAL DATABASE (iHOMIS)
+HOSPITAL_DB_SERVER=192.168.1.3
+HOSPITAL_DB_NAME=medilogs
+HOSPITAL_DB_USER=sa
+HOSPITAL_DB_PASSWORD=VibeQ@123_SecurePassword
 
-### 1. Launch the Stack
-```bash
-git clone <your-repo-url>
-cd qure
-sudo docker-compose up -d --build
+# QUEUE DATABASE
+QUEUE_DB_SERVER=192.168.1.3
+QUEUE_DB_NAME=HospitalQueueDB
+QUEUE_DB_USER=hqdb
+QUEUE_DB_PASSWORD=VibeQ@123_SecurePassword
 ```
 
-### 2. Initialize the Database
-Connect to the database at `your-server-ip:1433` (Username: `sa`, Password: `VibeQ@123_SecurePassword`) and run:
+### 2. Initialize the Queue Database
+Connect to your SQL Server and run the following script to create the required table:
 
 ```sql
 CREATE DATABASE HospitalQueueDB;
 GO
 USE HospitalQueueDB;
 GO
+
 CREATE TABLE Queues (
     id INT PRIMARY KEY IDENTITY(1,1),
     queueNumber NVARCHAR(50),
     patientName NVARCHAR(255),
-    door NVARCHAR(50),
-    status NVARCHAR(50), 
-    classification NVARCHAR(50), 
     serviceType NVARCHAR(255),
-    recordStatus NVARCHAR(50), 
+    status NVARCHAR(50) DEFAULT 'Pending',
+    classification NVARCHAR(50) DEFAULT 'Regular',
+    emrId NVARCHAR(255),
+    hpercode NVARCHAR(255),
+    door NVARCHAR(50),
+    recordStatus NVARCHAR(50) DEFAULT 'Pending',
     recordRetrievedBy NVARCHAR(255),
+    createdAt DATETIME DEFAULT GETDATE(),
     updatedAt DATETIME DEFAULT GETDATE()
 );
 GO
+```
+
+### 3. Launch the App
+```bash
+docker compose up -d --build
 ```
 
 ---
 
 ## 🛠 Features
 
-### 📺 Public Display Board
-- **Real-time SSE Streams**: Zero-latency patient calling notifications.
-- **Dual-Lane Logic**: Supports Priority vs. Regular queuing across 5 stations.
-- **Smart Infotainment**: Integrated YouTube stream with auto-embed conversion.
-- **Voice Announcements**: Automated high-fidelity text-to-speech for patient calls.
-
-### 🏥 Staff Station
-- **Multi-Station Control**: Nurses can call/re-broadcast patients for specific doors.
-- **Real-time Analytics**: Live view of pending vs. active patients in the queue.
-
-### 📂 Records Portal
-- **Logistics Pipeline**: Split-pane view for "Intake Queue" vs. "Retrieval Hub".
-- **Digital Chain of Custody**: Tracks chart printing and physical retrieval status.
+### 📂 Portals
+- **Triage**: `/triage` - Assign patients to clinic doors.
+- **Staff Station**: `/staff?door=1` - Call and manage patients.
+- **Public Display**: `/display` - Real-time queue board with Voice AI.
+- **Records**: `/records` - Track physical chart retrieval.
 
 ---
 
-## ⚙️ Configuration
-
-Environment variables are managed in `docker-compose.yml`:
-
-| Variable | Description | Default |
-| :--- | :--- | :--- |
-| `QUEUE_DB_SERVER` | Internal hostname for the DB container | `db` |
-| `QUEUE_DB_USER` | SQL Admin username | `sa` |
-| `QUEUE_DB_PASSWORD` | Secure SQL Password | `VibeQ@123_SecurePassword` |
-| `NODE_ENV` | Application mode | `production` |
-
----
-
-## 👨‍💻 Development
-
+## ⚙️ Development
 To run locally without Docker:
-```bash
-npm install
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) to view the portal.
+1. `npm install`
+2. `npm run dev`
+The app will be available at `http://localhost:3010`.
