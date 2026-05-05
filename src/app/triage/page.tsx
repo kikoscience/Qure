@@ -129,13 +129,12 @@ export default function TriagePage() {
           #print-ticket, #print-ticket * { visibility: visible; }
           #print-ticket { 
             position: absolute; 
-            left: 0; 
-            top: 0; 
-            width: 72mm; 
+            width: 100%; 
             padding: 0;
             margin: 0;
             color: black !important;
             background: white !important;
+            text-align: center !important;
           }
           /* Remove header/footer from browser print */
           @page { margin: 0; size: auto; }
