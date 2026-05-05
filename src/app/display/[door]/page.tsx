@@ -38,6 +38,23 @@ export default function DoorDisplayPage({ params }) {
         const prevStates = prevIdsRef.current;
         const newStates = currentStates.filter(state => !prevStates.includes(state));
         
+        if (newStates.length > 0 && prevStates.length > 0) {
+           if ('speechSynthesis' in window) {
+               window.speechSynthesis.cancel();
+           }
+           newStates.forEach(state => {
+               const id = state.split('|')[0];
+               const p = activeList.find(x => String(x.id) === id);
+               if (p && 'speechSynthesis' in window) {
+                   setIsSpeaking(true);
+                   const safeNumber = p.queueNumber.replace(/-/g, ' ');
+                   const msg = new SpeechSynthesisUtterance(`Calling patient number ${safeNumber}, please proceed to ${p.door}`);
+                   msg.rate = 0.85;
+                   msg.pitch = 1.1;
+                   msg.onend = () => setIsSpeaking(false);
+                   window.speechSynthesis.speak(msg);
+               }
+           });
         }
         prevIdsRef.current = currentStates;
 

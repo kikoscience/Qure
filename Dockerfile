@@ -10,7 +10,7 @@ RUN npm install
 COPY . .
 # Ensure we have the production environment variables during build if needed
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
 # --- Stage 2: Run ---
 FROM node:20-slim AS runner
