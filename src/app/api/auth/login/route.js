@@ -37,7 +37,7 @@ export async function POST(request) {
     const cookieStore = await cookies();
     cookieStore.set('auth_user', JSON.stringify(user), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // Set to false to allow login over HTTP (standard for internal hospital networks)
       sameSite: 'strict',
       maxAge: 60 * 60 * 12, // 12 hours
       path: '/',

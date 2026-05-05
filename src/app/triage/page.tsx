@@ -19,8 +19,11 @@ export default function TriagePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [authUser, setAuthUser] = useState(null);
   const [selectedDate, setSelectedDate] = useState(() => {
-    return new Date().toISOString().split('T')[0];
-  }); // Default to YYYY-MM-DD for native picker
+    const d = new Date();
+    const z = d.getTimezoneOffset() * 60 * 1000;
+    const local = new Date(d - z);
+    return local.toISOString().split('T')[0];
+  }); // Default to local YYYY-MM-DD
 
   const maskName = (name) => {
     if (!name) return '';
